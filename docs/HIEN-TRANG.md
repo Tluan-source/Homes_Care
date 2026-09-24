@@ -304,7 +304,7 @@ tệ nhất — lúc đang có tiền thật trong tài khoản.
 | Giao diện | ██░░░░░░░░ 20% | 1/8 màn hình; chưa có điều hướng |
 | Nối app ↔ database | ░░░░░░░░░░ 0% | Chưa bắt đầu |
 | Nhắc hạn tự động | ░░░░░░░░░░ 0% | Chưa bắt đầu |
-| Gửi QR qua Zalo | ░░░░░░░░░░ 0% | Còn vướng: Zalo **cấm QR trong ảnh mẫu ZNS** |
+| Gửi QR qua Zalo | ░░░░░░░░░░ 0% | Chốt: quản lý **tự chia sẻ** từ app sang Zalo (không dùng ZNS) — chỉ cần bảng chia sẻ của máy |
 
 ---
 
@@ -339,15 +339,18 @@ Mấy câu này **chặn việc**, không phải hỏi cho đủ thủ tục.
 | ~~S2~~ | ✅ Chủ nhà khoá tài khoản — `0006_account_lock.sql`, hiệu lực ngay | chốt 24/09 |
 | ~~S3~~ | ✅ Giữ + mã hoá tới hết hợp đồng, rồi xoá | chốt 24/09 · phần mã hoá chưa dựng |
 
-**Và một câu không phải kỹ thuật, nhưng quan trọng hơn cả sáu câu trên:**
+**Nhắc khách & đối soát — chốt 24/09/2026:**
 
-> Mỗi tháng, người quản lý mất bao nhiêu thời gian **nhắc khách đóng tiền**, so với bao nhiêu
-> thời gian **dò sao kê đối soát**?
+| Việc | Ai / cái gì làm |
+|---|---|
+| Nhắc hạn | **Chỉ trong app**, cho chủ nhà + quản lý. App không nhắn khách |
+| Gửi QR cho khách | **Quản lý tự gửi qua Zalo** — app soạn sẵn ảnh QR + tin nhắn, bấm chia sẻ |
+| Đối soát tiền vào | **SePay tự động** — khớp mã là ghi sổ, lệch tiền vào hàng đợi ngoại lệ |
 
-Toàn bộ thiết kế hiện tại đang đặt cược rằng đối soát mới là nút thắt. Nếu thực tế là nhắc
-mới tốn thời gian, thì bản MVP này **chuyển nút thắt chứ không gỡ nút thắt** — vì quản lý
-vẫn phải tự tay gửi ~200 mã QR mỗi tháng. Câu này cần đo bằng đồng hồ trong một tháng, không
-đoán được bằng code.
+Hệ quả thiết kế: việc tay còn lại nhiều nhất là **gửi ~200 QR mỗi tháng**, nên màn gửi QR phải
+là màn nhanh nhất của app (một nút tạo QR cho mọi kỳ tới hạn hôm nay, một nút chia sẻ sang
+Zalo, danh sách "chưa gửi"). Sau 1–2 tháng chạy thật nên đo lại thời gian gửi QR; nếu quá lớn
+thì mới cân nhắc Zalo OA / ZNS.
 
 ---
 
