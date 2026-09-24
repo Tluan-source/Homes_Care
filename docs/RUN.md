@@ -86,7 +86,7 @@ Studio chút nào**.
 | `npm run typecheck` | Kiểm kiểu cả lõi lẫn app (tự dựng lõi trước) |
 | `npm run lint` | ESLint — chặn core import React/Supabase, chặn core đọc đồng hồ, chặn import sâu |
 | `npm run check` | Chạy đủ bộ kiểm như CI: lint + typecheck + test + quét khoá |
-| `npm run db:test` | 65 test phân quyền — **chỉ chạy được với database cục bộ** |
+| `npm run db:test` | 87 test phân quyền — **chỉ chạy được với database cục bộ** |
 | `npm run build` | Dựng `@homescare/core` |
 
 ## Lỗi hay gặp

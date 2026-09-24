@@ -26,13 +26,33 @@ enabled = true
 site_url = "http://127.0.0.1:3000"
 jwt_expiry = 3600
 enable_refresh_token_rotation = true
-# Chưa chốt cách đăng nhập thật (xem docs/SECURITY.md §7 câu 1). Bật email cho môi
-# trường thử để còn tạo được tài khoản mà test.
-enable_signup = true
+
+# S1 (chốt 24/09/2026): đăng nhập bằng EMAIL + MẬT KHẨU.
+#
+# KHÔNG cho tự đăng ký. App chỉ có hai kiểu người dùng — chủ nhà và quản lý của chủ
+# nhà đó — nên tài khoản do CHỦ NHÀ tạo/mời, không phải ai tải app về cũng tự lập
+# được. Tự đăng ký bật thì bất kỳ ai cũng có tài khoản `authenticated`; RLS vẫn chặn
+# dữ liệu, nhưng không có lý do gì để mở cửa đó.
+# Môi trường thử: tạo người dùng trong Studio (localhost:54323 → Authentication → Add user).
+enable_signup = false
+
+# Mật khẩu tối thiểu 10 ký tự, có chữ và số. App đụng tiền và ảnh CCCD.
+minimum_password_length = 10
+password_requirements = "letters_digits"
 
 [auth.email]
-enable_signup = true
+enable_signup = false
+# Cục bộ không có hộp thư thật; production BẬT xác nhận và cấu hình SMTP riêng.
 enable_confirmations = false
+# Đổi mật khẩu phải nhập lại mật khẩu cũ / xác nhận qua email.
+secure_password_change = true
+
+# Xác thực 2 lớp bằng ứng dụng tạo mã (Google Authenticator...). BẮT BUỘC với chủ nhà
+# — tài khoản này thấy toàn bộ tiền (SECURITY.md §6). Việc ép buộc nằm ở app + RLS
+# (kiểm `aal2`), cấu hình ở đây chỉ bật tính năng.
+[auth.mfa.totp]
+enroll_enabled = true
+verify_enabled = true
 
 [storage]
 enabled = true

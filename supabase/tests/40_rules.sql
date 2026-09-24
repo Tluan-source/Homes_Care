@@ -153,5 +153,3 @@ begin
   exception when others then v_err := sqlerrm; end;
   perform t.blocked('Một phiếu không ghi nhận được hai lần', v_err);
 end $$;
-
-select t.report();

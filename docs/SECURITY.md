@@ -84,7 +84,9 @@ database, kể cả với người có quyền cao.
 Đã dựng phần kỹ thuật:
 
 - **Lưu trữ có hạn.** Hợp đồng chuyển `ENDED`/`TERMINATED` → trigger hẹn lịch xoá ảnh
-  CCCD sau **90 ngày** (10 ngày hoàn cọc + đệm cho tranh chấp). Bảng `file_retention`.
+  CCCD **ngay ngày hợp đồng kết thúc** (chốt S3, 24/09/2026 — bản đầu để 90 ngày). Bảng `file_retention`,
+  con số ở `id_doc_retention_days()` trong `0006`. Đánh đổi: tranh chấp cọc sau ngày kết thúc
+  sẽ không còn ảnh để đối chiếu.
 - **Đường xoá theo yêu cầu.** Policy `p_files_delete` cho `OWNER` xoá.
 
 Chưa làm và **cần bạn quyết** (xem §8):
@@ -123,15 +125,16 @@ Viết ra để không ai tưởng đã xong.
 
 | Việc | Mức | Ghi chú |
 |---|---|---|
-| **Chọn cách đăng nhập** | chặn P0 | OTP SMS? email + mật khẩu? Chưa quyết. Nếu OTP SMS thì cần nhà cung cấp và tính phí |
+| ~~Chọn cách đăng nhập~~ | ✅ chốt | Email + mật khẩu, không tự đăng ký, mật khẩu ≥ 10 ký tự có chữ và số (`config.toml`). Còn thiếu Edge Function `invite-member` |
 | **Bắt buộc 2 lớp cho OWNER** | cao | Tài khoản chủ nhà thấy toàn bộ tiền. Mất tài khoản này là mất tất cả |
-| **Thu hồi phiên khi quản lý nghỉ việc** | cao | Hiện xoá `memberships` là mất quyền, nhưng phiên đang mở vẫn sống tới khi token hết hạn. Cần quy trình thu hồi rõ |
+| ~~Thu hồi khi quản lý nghỉ việc~~ | ✅ xong (DB) | Chủ nhà khoá tài khoản (`0006`). `my_org()` trả NULL khi bị khoá nên mọi policy cùng đóng **ngay** — database hỏi lại quyền ở mỗi truy vấn, không chờ token hết hạn. Còn thiếu màn hình |
+| **Mã hoá ảnh CCCD và số CCCD** | cao | Chốt S3. Ổ đĩa Supabase đã mã hoá; cần thêm lớp mã hoá phía server (Edge Function + khoá trong secrets) |
 | ~~CI quét khoá bí mật~~ | ✅ xong | `npm run check:secrets` + gitleaks trong `.github/workflows/ci.yml` |
 | **Giới hạn tần suất gọi webhook** | trung bình | Endpoint public, chưa có rate limit |
 | **Rà log không rò dữ liệu** | trung bình | `console.error` đang log cả object lỗi, có thể kèm nội dung hàng dữ liệu |
 | **Sao lưu và diễn tập khôi phục** | cao | Supabase có sao lưu, nhưng **chưa ai thử khôi phục bao giờ**. Bản sao lưu chưa từng khôi phục thử thì coi như chưa có |
 | **Điều khoản dữ liệu cá nhân trong hợp đồng** | chặn pháp lý | Xem §4 |
-| ~~Test SQL cho RLS~~ | ✅ xong | 65 test trong `supabase/tests/`, `npm run db:test`. Xem §7 |
+| ~~Test SQL cho RLS~~ | ✅ xong | 87 test trong `supabase/tests/`, `npm run db:test`. Xem §7 |
 
 ---
 
@@ -181,11 +184,9 @@ quyền của người vô tình chạm vào.
 
 ---
 
-## 8. Ba câu hỏi cần bạn quyết
+## 8. Ba câu hỏi — đã chốt 24/09/2026
 
-1. **Đăng nhập bằng gì?** OTP SMS tiện cho quản lý (không nhớ mật khẩu) nhưng tốn phí
-   mỗi lần và phụ thuộc nhà mạng. Email + mật khẩu rẻ nhưng quản lý hay quên.
-2. **Quản lý nghỉ việc thì quy trình gì?** Ai bấm thu hồi, trong bao lâu, và có đổi
-   tài khoản ngân hàng nhận tiền không.
-3. **Giữ ảnh CCCD bao lâu sau khi khách trả phòng?** Tôi đang đặt mặc định **90 ngày**.
-   Ngắn hơn thì an toàn hơn nhưng mất bằng chứng nếu có tranh chấp muộn.
+1. **Đăng nhập:** email + mật khẩu. Không tự đăng ký; chủ nhà tạo tài khoản cho quản lý.
+2. **Quản lý nghỉ việc:** chủ nhà khoá tài khoản (`lock_member`). Không xoá — giữ dấu vết
+   ai đã ghi khoản tiền nào. Mở lại được nếu khoá nhầm.
+3. **Ảnh CCCD:** giữ và mã hoá tới khi hợp đồng kết thúc, rồi xoá.
