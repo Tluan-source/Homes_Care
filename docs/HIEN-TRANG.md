@@ -76,9 +76,9 @@ vẫn báo nợ 102 triệu.
 | `supabase/migrations` (6 file) | ✅ **Chạy sạch** | Dựng từ database rỗng trên PostgreSQL 16: 19 bảng, 8 enum, 12 hàm, 8 trigger, 2 view, 36 policy |
 | `supabase/seed.sql` | ✅ **Chạy được** | **Hai tổ chức** khác nhau, 4 căn, 4 hợp đồng phủ cả ba mức thuê |
 | `supabase/tests/` | ✅ **87/87 đạt** | `npm run db:test` — dựng lại từ số 0 rồi chạy toàn bộ |
-| `supabase/functions/sepay-webhook` | ⛔ **Chưa biên dịch được** | Nó `import ... from '../_shared/core.ts'` — **file đó không tồn tại**, mới chỉ có `_shared/README.md` mô tả cách sinh ra nó, và script `npm run bundle:edge` được nhắc tới trong README cũng **chưa được viết** |
+| `supabase/functions/*` (4 hàm) | ⏳ **Đã viết, chưa deploy** | Bước 3 (24/09): webhook viết lại an toàn khi SePay gửi lại, `run-reminders`, `purge-expired-docs`, `invite-member`; `npm run bundle:edge` sinh `_shared/core.ts`. Cách deploy + kiểm tra: `docs/DEPLOY.md` |
 | Kết nối app ↔ Supabase | ⛔ **Chưa có** | Không có file `.env`, không có client Supabase nào trong `apps/mobile` |
-| Nhắc hạn tự động | ⛔ **Chưa viết** | `core` đã có `planReminders` và `marksDueToday`, nhưng chưa có Edge Function nào gọi chúng theo giờ |
+| Nhắc hạn tự động | ⏳ **Đã viết** | `run-reminders` + `supabase/cron.sql` (08:00 giờ VN), chờ deploy |
 
 **Chạy thử database:**
 

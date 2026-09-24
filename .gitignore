@@ -14,3 +14,7 @@ dist-tests/
 # Chỉ đưa vào git khi bạn thực sự phải sửa tay file native nào đó (xem docs/RUN.md).
 apps/mobile/android/
 apps/mobile/ios/
+
+# Sinh ra bởi `npm run bundle:edge` từ packages/core — KHÔNG sửa tay, không commit.
+supabase/functions/_shared/core.ts
+supabase/functions/_shared/core/

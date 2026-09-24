@@ -14,21 +14,21 @@ Kiểm trực tiếp trên máy, không đọc theo tài liệu:
 |---|---|
 | `npm test` (lõi nghiệp vụ) | ✅ 39/39 đạt |
 | `npm run typecheck` | ✅ Xanh *(24/09: nguyên nhân là app kiểm kiểu trước khi lõi được dựng — nay typecheck tự dựng lõi)* |
-| Migrations + test RLS | ✅ 87/87 đạt trên Postgres 16 sạch (kiểm lại 24/09, gồm 22 test khoá tài khoản) |
-| Webhook SePay | ❌ Không biên dịch được — thiếu `_shared/core.ts`, chưa có script `bundle:edge` |
+| Migrations + test RLS | ✅ 87/87 đạt (24/09) · ⏳ **bước 3 thêm 29 test → cần bạn chạy: phải ra 116/116** |
+| Webhook SePay | ⏳ Đã viết lại + có `bundle:edge` (bước 3) — chờ bạn chạy `functions:check` và thử trên staging |
 | App mobile | ⚠️ 1/8 màn hình, dữ liệu giả, chưa có đăng nhập, chưa nối Supabase |
-| Nhắc hạn tự động | ❌ Chưa có Edge Function `run-reminders` |
+| Nhắc hạn tự động | ⏳ Đã có `run-reminders` + lịch `cron.sql` — chờ deploy |
 | Quản lý mã nguồn | ✅ Git + GitHub `Tluan-source/Homes_Care`, có CI |
 | Tài nguyên store | ❌ Không có icon, splash, `eas.json` |
 
 ### Lỗi mới phát hiện trong lần review này (chưa có trong docs)
 
-- [ ] ⛔ **Webhook mất tiền khi retry.** Thứ tự hiện tại: `insert bank_transactions` → `settle_request`. Nếu `settle` lỗi → trả 500 → SePay gửi lại → `insert` dính `23505` → trả `duplicate: true` → **giao dịch không bao giờ được đối soát lại**, tiền vào tài khoản nhưng kỳ vẫn nợ. Sửa: khi trùng thì kiểm tra giao dịch đã có `payments`/đã xử lý chưa, chưa thì chạy lại đối soát (hoặc thêm cột `processed_at` trên `bank_transactions`).
-- [ ] ⛔ **Webhook đọc toàn bộ phiếu đang mở của MỌI tổ chức** (`.in('status', ['DRAFT','SENT'])` không lọc). Chậm dần theo số phiếu, và dễ khớp nhầm chéo chủ nhà. Lọc theo `account_number` nhận tiền → `bank_accounts` → org trước khi đối soát.
-- [ ] **`due: new Date()`** trong webhook là giá trị giữ chỗ — thứ tự phân bổ nhiều kỳ không đúng. Lấy `due_on` thật từ `payment_periods`.
-- [ ] **Số phiếu thu bị nhảy số.** `nextReceiptSeq()` chạy trước `settle_request`; settle lỗi thì số đã cấp mất luôn. Chuyển việc cấp số vào trong `settle_request` (cùng transaction).
-- [ ] **Audit log ghi sau cùng, không kiểm lỗi.** Insert audit thất bại thì không ai biết. Kiểm `error`, hoặc ghi audit trong cùng RPC.
-- [ ] ⛔ **Lịch xoá ảnh CCCD chỉ hẹn, không ai xoá.** `file_retention` có dữ liệu nhưng không có job `pg_cron`/Edge Function nào thực sự xoá file khi tới `purge_after`.
+- [x] ⛔ **Webhook mất tiền khi retry.** *(sửa ở bước 3: cột `processed_at` + RPC `process_bank_tx` gọi lại bao nhiêu lần cũng an toàn)* Thứ tự hiện tại: `insert bank_transactions` → `settle_request`. Nếu `settle` lỗi → trả 500 → SePay gửi lại → `insert` dính `23505` → trả `duplicate: true` → **giao dịch không bao giờ được đối soát lại**, tiền vào tài khoản nhưng kỳ vẫn nợ. Sửa: khi trùng thì kiểm tra giao dịch đã có `payments`/đã xử lý chưa, chưa thì chạy lại đối soát (hoặc thêm cột `processed_at` trên `bank_transactions`).
+- [x] ⛔ **Webhook đọc toàn bộ phiếu đang mở của MỌI tổ chức** (`.in('status', ['DRAFT','SENT'])` không lọc). Chậm dần theo số phiếu, và dễ khớp nhầm chéo chủ nhà. Lọc theo `account_number` nhận tiền → `bank_accounts` → org trước khi đối soát.
+- [x] **`due: new Date()`** trong webhook là giá trị giữ chỗ — thứ tự phân bổ nhiều kỳ không đúng. Lấy `due_on` thật từ `payment_periods`.
+- [x] **Số phiếu thu bị nhảy số.** `nextReceiptSeq()` chạy trước `settle_request`; settle lỗi thì số đã cấp mất luôn. Chuyển việc cấp số vào trong `settle_request` (cùng transaction).
+- [x] **Audit log ghi sau cùng, không kiểm lỗi.** Insert audit thất bại thì không ai biết. Kiểm `error`, hoặc ghi audit trong cùng RPC.
+- [x] ⛔ **Lịch xoá ảnh CCCD chỉ hẹn, không ai xoá.** *(bước 3: Edge Function `purge-expired-docs` + lịch hằng ngày)* `file_retention` có dữ liệu nhưng không có job `pg_cron`/Edge Function nào thực sự xoá file khi tới `purge_after`.
 - [x] **`supabase/tests/run.sh` nhận `PGURL` bất kỳ và xoá sạch database.** Thêm chặn: từ chối chạy nếu URL không phải `127.0.0.1`/`localhost` (trừ khi có cờ xác nhận rõ ràng). Một lần gõ nhầm URL production là mất hết.
 - [ ] `config.toml` đang `enable_signup = true` — khi lên production phải tắt đăng ký tự do (chủ nhà mời quản lý, không cho ai cũng tạo tài khoản).
 - [x] `.gitignore` đang bỏ qua `package-lock.json` → build mỗi lần ra phiên bản thư viện khác nhau. **Phải commit lockfile.**
@@ -78,24 +78,46 @@ Kiểm trực tiếp trên máy, không đọc theo tài liệu:
 
 ## 3. Backend (Supabase) — production
 
-- [ ] ⛔ Tạo project Supabase production (region Singapore), **tách hẳn** project staging.
-- [ ] Chạy 6 migration lên staging → chạy `db:test` trên staging → rồi mới production.
-- [ ] Không chạy `seed.sql` lên production.
-- [ ] Production: tắt đăng ký tự do, **bật** xác nhận email, độ dài mật khẩu 10 + chữ/số, bật MFA TOTP — cùng cấu hình như `config.toml` (bản cục bộ đã xong).
-- [ ] ⛔ Edge Function `invite-member`: chủ nhà nhập email quản lý → tạo tài khoản + `profiles` + `memberships` (cần `service_role`, nên phải ở server). Tắt đăng ký tự do thì đây là đường DUY NHẤT để có tài khoản quản lý.
-- [ ] *(tuỳ chọn)* Khi khoá, gọi thêm Auth Admin API `ban_duration` để chặn cả việc đăng nhập lại — database đã chặn dữ liệu, bước này chỉ để app không cho vào luôn.
-- [ ] Cấu hình SMTP riêng (email mặc định của Supabase bị giới hạn số lượng).
-- [ ] ⛔ Viết `npm run bundle:edge` sinh `_shared/core.ts` từ `packages/core`; đưa vào CI để không ai sửa tay.
-- [ ] ⛔ Sửa các lỗi webhook ở mục 0, deploy `sepay-webhook --no-verify-jwt`, `supabase secrets set SEPAY_WEBHOOK_SECRET=...`.
-- [ ] Thử webhook bằng giao dịch thật số nhỏ (vd 2.000đ): khớp → phiếu thu sinh ra; gửi lại → không ghi hai lần; lệch 1.000đ → vào hàng đợi ngoại lệ.
-- [ ] Rate limit / chặn body quá lớn cho webhook.
-- [ ] ⛔ Job xoá file theo `file_retention` (pg_cron hằng ngày). Theo S3 mốc là **ngay ngày hợp đồng kết thúc**, nên job phải chạy mỗi ngày, không phải mỗi tuần.
-- [ ] Job chuyển hợp đồng quá `ends_on` sang `ENDED` — không có job này thì trigger hẹn xoá CCCD không bao giờ chạy.
-- [ ] Edge Function `run-reminders` + `pg_cron` mỗi sáng: gửi **push trong app cho quản lý phụ trách tòa + chủ nhà** theo mốc D-3 / D0 / D+1 / D+3 (`marksDueToday` của core). Không gửi gì cho khách thuê. Kỳ đã thanh toán → dừng hẳn.
-- [ ] ⛔ **SePay:** tạo tài khoản, liên kết tài khoản ngân hàng nhận tiền của **từng chủ nhà**, khai báo webhook trỏ về `sepay-webhook` kèm API key; chọn gói SePay theo số giao dịch/tháng (~200+).
-- [ ] Kiểm lại: mọi view có `security_invoker = true`; mọi hàm `security definer` đã `revoke ... from public, anon, authenticated`.
-- [ ] Bật Point-in-Time Recovery (gói trả phí) **và** ⛔ diễn tập khôi phục một lần vào project trống.
-- [ ] Bật cảnh báo: lỗi Edge Function, dung lượng DB/Storage.
+> Hướng dẫn từng bước + cách tự kiểm tra: **`docs/DEPLOY.md`**. Ký hiệu: **[code]** = đã viết
+> trong repo (24/09), còn chờ bạn chạy kiểm tra · **[bạn]** = phải làm trên Dashboard / SePay.
+
+**Code — đã viết**
+- [x] **[code]** `0007_server_jobs.sql`: webhook an toàn khi gửi lại (`processed_at`, `process_bank_tx`), số phiếu thu cấp trong cùng transaction, nhật ký trong cùng transaction, hàng đợi ngoại lệ `bank_tx_exceptions`, `end_expired_contracts()`, hộp thư `notifications`, `push_tokens` + `register_push_token()`.
+- [x] **[code]** `sepay-webhook` viết lại: chỉ nạp phiếu đúng mã + cùng hợp đồng, `due` lấy từ kỳ thật, giờ SePay hiểu đúng +07:00, giới hạn body 64KB, tiền ra trả 200 (không để SePay retry vô ích).
+- [x] **[code]** `run-reminders`: MỘT bản tin/ngày/người cho chủ nhà + quản lý (bỏ tài khoản bị khoá), push qua Expo, không gửi trùng.
+- [x] **[code]** `purge-expired-docs`: xoá ảnh CCCD qua Storage API (xoá file thật, không chỉ xoá hàng).
+- [x] **[code]** `invite-member`: chủ nhà mời quản lý bằng email; lỗi giữa chừng thì dọn tài khoản vừa tạo.
+- [x] **[code]** `npm run bundle:edge` sinh `_shared/core.ts` từ core (gitignore) · `functions:check` · `functions:deploy`; CI thêm job `functions`.
+- [x] **[code]** `supabase/cron.sql`: 3 lịch (00:05, 00:20, 08:00 giờ VN), bí mật để trong Vault.
+- [x] **[code]** `60_hardening.sql`: tự động bắt hàm `security definer` gọi được từ ngoài, view thiếu `security_invoker`, bảng quên bật RLS — ở MỌI migration sau này.
+- [x] **[code]** `scripts/test-payment.mjs`: sinh phiếu + QR + body SePay giả lập để thử trên staging.
+
+**Kiểm tra trên máy — [bạn]** *(DEPLOY.md §1)*
+- [ ] ⛔ `npm run check` xanh · `npm run functions:check` không lỗi · `npm run db:test` ra **116/116**.
+- [ ] Bật thêm check `functions` trong bảo vệ nhánh `main` (phụ lục cuối file).
+
+**Dựng cloud — [bạn]**
+- [ ] ⛔ Tạo 2 project Supabase `homescare-staging` / `homescare-prod`, Singapore; prod dùng gói Pro. *(§2)*
+- [ ] ⛔ `supabase db push` 7 migration lên staging, rồi production. Không chạy `seed.sql` lên production. *(§3)*
+- [ ] ⛔ Dashboard Auth: tắt đăng ký tự do, bật xác nhận email, mật khẩu 10 + chữ/số, bật MFA TOTP, thêm redirect `homescare://set-password`. *(§4)*
+- [ ] ⛔ SMTP riêng. *(§4)*
+- [ ] ⛔ `supabase secrets set` 3 khoá. *(§5)*
+- [ ] ⛔ `npm run functions:deploy` + chạy `cron.sql`. *(§6)*
+- [ ] ⛔ Tạo chủ nhà đầu tiên + tòa + tài khoản ngân hàng. *(§7)*
+- [ ] ⛔ **SePay:** tài khoản, liên kết ngân hàng của **từng chủ nhà**, webhook + API key, gói theo ~200+ giao dịch/tháng. *(§8)*
+
+**Kiểm tra trên staging — [bạn]** *(§9)*
+- [ ] Webhook: không khoá/sai khoá 401 · tiền ra 200 · khớp → PAID + phiếu thu · gửi lại → duplicate · chuyển trùng → UNMATCHED · lệch 1.000đ → không bao giờ PAID.
+- [ ] ⛔ Tiền thật 2.000đ, quét bằng 3 app ngân hàng khác nhau.
+- [ ] Lịch nền: `run-reminders` / `purge-expired-docs` chạy tay được, không khoá → 401, sáng hôm sau `cron.job_run_details` báo succeeded.
+- [ ] `invite-member` gửi được email mời; khoá → quản lý đọc ra `[]`; mở khoá → thấy lại.
+- [ ] Tự đăng ký bị chặn.
+
+**Vận hành — [bạn]**
+- [ ] ⛔ Bật PITR / sao lưu hằng ngày và **diễn tập khôi phục** một lần vào project trống. *(§10)*
+- [ ] Cảnh báo lỗi Edge Function, dung lượng DB/Storage. *(§11)*
+- [ ] *(tuỳ chọn)* Khi khoá tài khoản, gọi thêm Auth Admin `ban_duration` để chặn luôn việc đăng nhập — database đã chặn dữ liệu rồi.
+- [ ] *(ghi nhớ)* Test `70_server_jobs` dùng hợp đồng mẫu hết hạn **10/03/2027** — sau ngày đó sửa `ends_on` trong `seed.sql`.
 
 ---
 
@@ -229,7 +251,7 @@ một lần (GitHub chỉ cho chọn những check đã từng chạy).
    - **Restrict deletions**
    - **Block force pushes**
    - **Require a pull request before merging** (làm một mình thì để *Required approvals = 0*)
-   - **Require status checks to pass** → **Add checks**: `check`, `db`, `secrets`
+   - **Require status checks to pass** → **Add checks**: `check`, `db`, `functions`, `secrets`
      → bật *Require branches to be up to date before merging*
 4. **Create**.
 
