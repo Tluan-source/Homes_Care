@@ -24,7 +24,8 @@ begin
    where n.nspname = 'public' and p.prosecdef
      and p.prorettype <> 'trigger'::regtype
      and has_function_privilege('authenticated', p.oid, 'EXECUTE')
-     and p.proname not in ('log_event', 'lock_member', 'unlock_member', 'register_push_token');
+     and p.proname not in ('log_event', 'lock_member', 'unlock_member', 'register_push_token',
+                            'resolve_bank_tx', 'dismiss_bank_tx');
   perform t.ok('Người dùng chỉ gọi được các hàm security definer đã duyệt', v_bad is null,
                'ngoài danh sách: ' || v_bad);
 

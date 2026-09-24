@@ -134,7 +134,7 @@ Viết ra để không ai tưởng đã xong.
 | **Rà log không rò dữ liệu** | trung bình | `console.error` đang log cả object lỗi, có thể kèm nội dung hàng dữ liệu |
 | **Sao lưu và diễn tập khôi phục** | cao | Supabase có sao lưu, nhưng **chưa ai thử khôi phục bao giờ**. Bản sao lưu chưa từng khôi phục thử thì coi như chưa có |
 | **Điều khoản dữ liệu cá nhân trong hợp đồng** | chặn pháp lý | Xem §4 |
-| ~~Test SQL cho RLS~~ | ✅ xong | 87 test trong `supabase/tests/`, `npm run db:test`. Xem §7 |
+| ~~Test SQL cho RLS~~ | ✅ xong | 139 test trong `supabase/tests/`, `npm run db:test`. Xem §7 |
 
 ---
 

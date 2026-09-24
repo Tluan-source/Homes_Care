@@ -75,7 +75,7 @@ Deno.serve(async (req) => {
     const byPerson = new Map<string, { orgId: string; towers: (string | null)[] }>();
     // deno-lint-ignore no-explicit-any
     for (const m of (members ?? []) as any[]) {
-      const cur = byPerson.get(m.profile_id) ?? { orgId: m.org_id, towers: [] };
+      const cur = byPerson.get(m.profile_id) ?? { orgId: m.org_id as string, towers: [] as (string | null)[] };
       cur.towers.push(m.tower_id);
       byPerson.set(m.profile_id, cur);
     }

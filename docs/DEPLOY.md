@@ -27,7 +27,7 @@ riêng `npm run db:test` và các lệnh `curl` bên dưới thì dùng Git Bash
 cd product
 npm install
 npm run check            # lint + typecheck + 39 test lõi + quét khoá
-npm run functions:check  # sinh _shared/core.ts rồi deno check 4 Edge Function
+npm run functions:check  # sinh _shared/core.ts rồi deno check 5 Edge Function
 npm run db:start         # lần đầu tải image Docker, mất vài phút
 npm run db:test          # dựng database từ số 0 + chạy toàn bộ test phân quyền
 ```
@@ -35,7 +35,7 @@ npm run db:test          # dựng database từ số 0 + chạy toàn bộ test 
 **✔ Kiểm tra:**
 - `npm run check` kết thúc bằng `✅ Không thấy khoá bí mật...`
 - `functions:check` không in lỗi `TS`.
-- `db:test` in dòng `116/116 đạt` rồi `✅ Toàn bộ test phân quyền ĐẠT.` Đọc lướt các dòng
+- `db:test` in dòng `139/139 đạt` rồi `✅ Toàn bộ test phân quyền ĐẠT.` Đọc lướt các dòng
   `ĐẠT` của `60_hardening` và `70_server_jobs` — đó là phần mới của bước này.
 
 Nếu `db:test` báo `HỎNG`, dòng đó ghi rõ test nào và vì sao. Gửi tôi nguyên dòng đó.
@@ -62,13 +62,13 @@ Ghi lại **Project ref** (chuỗi trong URL `supabase.com/dashboard/project/<re
 ```bash
 supabase login
 supabase link --project-ref <REF_STAGING>
-supabase db push          # đẩy 0001 → 0007
+supabase db push          # đẩy 0001 → 0008
 ```
 
 **✔ Kiểm tra:**
 - Dashboard → **Table Editor**: có `units`, `contracts`, `payment_requests`, `notifications`, `push_tokens`…
   mỗi bảng có nhãn **RLS enabled**.
-- Dashboard → **Database → Migrations**: đủ 7 dòng.
+- Dashboard → **Database → Migrations**: đủ 8 dòng.
 - **Không** chạy `seed.sql` lên production.
 
 *(Tuỳ chọn, chỉ STAGING)* chạy luôn bộ test phân quyền trên cloud. Lệnh này **xoá sạch**
@@ -135,15 +135,15 @@ Hai chuỗi trên cất vào trình quản lý mật khẩu; **không** dán và
 ```bash
 npm run functions:deploy
 ```
-Lệnh tự sinh `_shared/core.ts` rồi deploy cả 4 hàm, mỗi hàm theo đúng cấu hình
+Lệnh tự sinh `_shared/core.ts` rồi deploy cả 5 hàm, mỗi hàm theo đúng cấu hình
 `verify_jwt` trong `config.toml`.
 
 Rồi mở **SQL Editor**, dán `supabase/cron.sql`, **thay 2 chỗ `<...>`** (URL project và
 `CRON_SECRET` ở bước 5), bấm Run.
 
 **✔ Kiểm tra:**
-- Dashboard → **Edge Functions**: 4 hàm `sepay-webhook`, `run-reminders`, `purge-expired-docs`,
-  `invite-member`.
+- Dashboard → **Edge Functions**: 5 hàm `sepay-webhook`, `run-reminders`, `purge-expired-docs`,
+  `invite-member`, `create-payment-request`.
 - SQL Editor: `select jobname, schedule, active from cron.job;` → 3 dòng, `active = true`.
 
 ---
@@ -170,6 +170,16 @@ select p.id, p.org_id, 'OWNER', null from p;
 **✔ Kiểm tra:** `select * from memberships;` có 1 dòng `OWNER`.
 
 ---
+
+## 7b. Dữ liệu mẫu (CHỈ staging)
+
+Để mở app lên là thấy các màn có số liệu: SQL Editor → dán `supabase/demo-data.sql` → sửa
+`c_email` thành email chủ nhà ở bước 7 (và `c_bank_*` nếu muốn thử QR với tài khoản thật) → Run.
+
+**✔ Kiểm tra:** dòng thông báo `Xong: ~30 căn, ~24 hợp đồng, ~280 kỳ thu`. Chạy lại lần hai sẽ
+báo trùng — khối xoá ở cuối file dọn sạch để chạy lại.
+
+**Không bao giờ chạy file này trên production.**
 
 ## 8. Nối SePay
 
@@ -301,6 +311,31 @@ curl -s "$URL/auth/v1/signup" -H "apikey: $ANON" -H 'content-type: application/j
 **✔ Đạt khi:** báo lỗi kiểu `Signups not allowed`.
 
 ---
+
+### 9.7 Chạy app trên điện thoại với staging
+
+Làm theo `docs/RUN.md` → *Nối app vào Supabase*, rồi `npm run start:tunnel` và quét QR.
+
+| Thử | ✔ Đạt khi |
+|---|---|
+| Mở app khi chưa có `.env` | màn "Chưa cấu hình", không sập |
+| Đăng nhập sai mật khẩu | "Sai email hoặc mật khẩu" |
+| Đăng nhập chủ nhà | tab **Căn hộ**: có Khu S / Khu H, tòa S12 · S219 · H7, thẻ số liệu khớp số căn |
+| Bấm "Mở hết" → một căn | chi tiết 5 tab; tab Phòng & người ở bấm "i" ra thông tin người ở |
+| Tìm tên khách không dấu (vd `nguyen`) | ra căn kèm dòng tên khách khớp |
+| Lọc "Chưa đóng" | số trên nút **Xem N căn** bằng số dòng hiện ra |
+| Căn đang nợ → **Tạo yêu cầu thanh toán** | bước 1 hiện các kỳ + phạt (nếu trễ > 2 ngày tiền nhà) → **Xác nhận và tạo QR** ra mã `HC…` |
+| **Gửi qua Zalo** | mở bảng chia sẻ có ảnh QR; chọn Zalo gửi cho chính bạn → dán (tin nhắn đã được sao chép) → app hỏi "Đã gửi chưa?" → Đã gửi |
+| Quét ảnh QR vừa gửi bằng app ngân hàng | đúng số TK, số tiền, nội dung |
+| Quay lại **Cần xử lý** | căn đó rời nhóm "Chưa gửi QR" |
+| Giả lập SePay trả đúng mã đó (§9.2, lấy `code` + `amount` trên phiếu) | kéo xuống làm mới → căn thành "Đã đóng đủ"; **Sổ quỹ** có phiếu thu `PT-…` |
+| Giả lập SePay chuyển thiếu | **Cần xử lý → Ngoại lệ SePay** có thẻ "khách chuyển thiếu" → **Ghép vào phiếu này** → sinh phiếu thu, kỳ còn nợ đúng phần thiếu |
+| **Tiền mặt** ở một căn | Sổ quỹ → "Ghi nhận tay" có dòng mang tên bạn |
+| Tab Ghi chú → thêm | hiện ngay kèm giờ + tên; không có nút sửa / xoá |
+| Ảnh đại diện → Tài khoản → **Mời quản lý** | email mời tới; quản lý đặt mật khẩu qua link → đăng nhập chỉ thấy tòa được giao |
+| Chủ nhà bấm **Khoá** quản lý đó | máy quản lý kéo xuống làm mới → màn "Tài khoản đã bị khoá" |
+
+Lỗi hay màn hình lạ: chụp màn hình + dòng lỗi trong terminal Metro gửi tôi.
 
 ## 10. Sao lưu — diễn tập khôi phục (production, gói Pro)
 
