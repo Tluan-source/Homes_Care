@@ -45,7 +45,7 @@ export function computeMoneyState(input: MoneyStateInput): MoneyState {
   let terminable = false;
   let nextDue: Date | undefined;
   let upcomingAmount: VND = 0;
-  let extension = contracts.map(c => c.extension).find(Boolean);
+  const extension = contracts.map(c => c.extension).find(Boolean);
 
   for (const c of contracts) {
     const invoices = scheduleOf(c);

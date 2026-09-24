@@ -13,12 +13,12 @@ Kiểm trực tiếp trên máy, không đọc theo tài liệu:
 | Hạng mục | Kết quả |
 |---|---|
 | `npm test` (lõi nghiệp vụ) | ✅ 39/39 đạt |
-| `npm run typecheck` | ❌ **Đỏ** — `apps/mobile` lỗi kiểu (`demo.ts`, `UnitRow.tsx`, `statusStyle.ts`: implicit `any`, không resolve được `@homescare/core`) |
+| `npm run typecheck` | ✅ Xanh *(24/09: nguyên nhân là app kiểm kiểu trước khi lõi được dựng — nay typecheck tự dựng lõi)* |
 | Migrations + 65 test RLS | ✅ theo HIEN-TRANG (chưa chạy lại trên máy này vì máy không có `psql`/`supabase`) |
 | Webhook SePay | ❌ Không biên dịch được — thiếu `_shared/core.ts`, chưa có script `bundle:edge` |
 | App mobile | ⚠️ 1/8 màn hình, dữ liệu giả, chưa có đăng nhập, chưa nối Supabase |
 | Nhắc hạn tự động | ❌ Chưa có Edge Function `run-reminders` |
-| Quản lý mã nguồn | ❌ **`product/` không phải git repo** — không có lịch sử, không rollback được |
+| Quản lý mã nguồn | ✅ Git + GitHub `Tluan-source/Homes_Care`, có CI |
 | Tài nguyên store | ❌ Không có icon, splash, `eas.json` |
 
 ### Lỗi mới phát hiện trong lần review này (chưa có trong docs)
@@ -29,16 +29,16 @@ Kiểm trực tiếp trên máy, không đọc theo tài liệu:
 - [ ] **Số phiếu thu bị nhảy số.** `nextReceiptSeq()` chạy trước `settle_request`; settle lỗi thì số đã cấp mất luôn. Chuyển việc cấp số vào trong `settle_request` (cùng transaction).
 - [ ] **Audit log ghi sau cùng, không kiểm lỗi.** Insert audit thất bại thì không ai biết. Kiểm `error`, hoặc ghi audit trong cùng RPC.
 - [ ] ⛔ **Lịch xoá ảnh CCCD chỉ hẹn, không ai xoá.** `file_retention` có dữ liệu nhưng không có job `pg_cron`/Edge Function nào thực sự xoá file khi tới `purge_after`.
-- [ ] **`supabase/tests/run.sh` nhận `PGURL` bất kỳ và xoá sạch database.** Thêm chặn: từ chối chạy nếu URL không phải `127.0.0.1`/`localhost` (trừ khi có cờ xác nhận rõ ràng). Một lần gõ nhầm URL production là mất hết.
+- [x] **`supabase/tests/run.sh` nhận `PGURL` bất kỳ và xoá sạch database.** Thêm chặn: từ chối chạy nếu URL không phải `127.0.0.1`/`localhost` (trừ khi có cờ xác nhận rõ ràng). Một lần gõ nhầm URL production là mất hết.
 - [ ] `config.toml` đang `enable_signup = true` — khi lên production phải tắt đăng ký tự do (chủ nhà mời quản lý, không cho ai cũng tạo tài khoản).
-- [ ] `.gitignore` đang bỏ qua `package-lock.json` → build mỗi lần ra phiên bản thư viện khác nhau. **Phải commit lockfile.**
+- [x] `.gitignore` đang bỏ qua `package-lock.json` → build mỗi lần ra phiên bản thư viện khác nhau. **Phải commit lockfile.**
 - [ ] Tiêu đề màn hình hardcode `"KHU CĂN HỘ NEXUS"` trong `App.tsx` — lấy từ dữ liệu tổ chức.
 
 ### Tài liệu lệch với code
 
 - [ ] `HIEN-TRANG.md` §2: sơ đồ vẫn ghi migrations "CHƯA CHẠY ⛔ / chưa chạy lần nào", trong khi §3 ghi đã chạy sạch.
-- [ ] `ARCHITECTURE.md` §5.2 trỏ tới file không tồn tại: `core/time/schedule.ts` (thật là `billing/schedule.ts`), `core/payment/banks.ts` (thật là `payment/vietqr.ts`), `functions/run-reminders/`.
-- [ ] `ARCHITECTURE.md` nói "có ESLint chặn" import sai chiều / app tự tính tiền — **chưa có cấu hình ESLint nào**.
+- [x] `ARCHITECTURE.md` §5.2 trỏ tới file không tồn tại: `core/time/schedule.ts` (thật là `billing/schedule.ts`), `core/payment/banks.ts` (thật là `payment/vietqr.ts`), `functions/run-reminders/`.
+- [x] `ARCHITECTURE.md` nói "có ESLint chặn" import sai chiều / app tự tính tiền — **chưa có cấu hình ESLint nào**.
 - [ ] Đặc tả v1.9 §8.4 ghi mã thanh toán `HC` + 6 ký tự và số phiếu `PT-2026-00009`; code thật là `HC2609GD92T` (YYMM + 4 + ký tự kiểm tra) và `PT-202609-0009`. Cập nhật đặc tả lên v2.0 theo code.
 - [ ] Đặc tả §4.2 `payment_extensions` ghi "Ai duyệt: OWNER", §9.2 lại cho quản lý duyệt ≤ 7 ngày — xoá câu cũ.
 
@@ -53,12 +53,12 @@ Kiểm trực tiếp trên máy, không đọc theo tài liệu:
 
 ## 1. Nền móng — làm trước mọi thứ
 
-- [ ] ⛔ `git init` trong `product/`, commit lần đầu, đẩy lên GitHub/GitLab **private**.
-- [ ] Bật bảo vệ nhánh `main`: phải qua pull request, CI xanh mới merge.
-- [ ] ⛔ Sửa `npm run typecheck` về xanh.
-- [ ] Thêm ESLint + luật chặn: `core` không import `apps/`/`supabase/`; ngoài core không import sâu vào `@homescare/core/...`.
-- [ ] CI (GitHub Actions): `npm ci` → `typecheck` → `npm test` → `db:test` (Postgres service) → **quét khoá bí mật** (`service_role`, `SEPAY_`, `eyJ` trong `apps/`) bằng gitleaks.
-- [ ] Đặt phiên bản: `app.json` `version` + `android.versionCode` + `ios.buildNumber`; quy ước tăng số.
+- [x] ⛔ `git init` trong `product/`, commit lần đầu, đẩy lên GitHub/GitLab **private**. *(kiểm lại repo đang để Private)*
+- [ ] Bật bảo vệ nhánh `main`: phải qua pull request, CI xanh mới merge. **← bạn tự bật trên GitHub, xem hướng dẫn cuối file**
+- [x] ⛔ Sửa `npm run typecheck` về xanh.
+- [x] Thêm ESLint + luật chặn: `core` không import `apps/`/`supabase/`; ngoài core không import sâu vào `@homescare/core/...`.
+- [x] CI (GitHub Actions): `npm ci` → `typecheck` → `npm test` → `db:test` (Postgres service) → **quét khoá bí mật** (`service_role`, `SEPAY_`, `eyJ` trong `apps/`) bằng gitleaks. *(`.github/workflows/ci.yml`, 3 job: `check` · `db` · `secrets`)*
+- [x] Đặt phiên bản: `app.json` `version` + `android.versionCode` + `ios.buildNumber`; quy ước tăng số. *(quy ước ở `CONVENTIONS.md` → Phiên bản)*
 
 ---
 
@@ -196,3 +196,23 @@ Kiểm trực tiếp trên máy, không đọc theo tài liệu:
 - [ ] Đối chiếu sao kê ngân hàng với phiếu thu cuối tuần đầu.
 - [ ] Thu phản hồi quản lý; đo lại thời gian đối soát so với đích < 15 phút/tháng.
 - [ ] Lên lịch diễn tập khôi phục sao lưu định kỳ (mỗi quý).
+
+---
+
+## Phụ lục — bật bảo vệ nhánh `main` trên GitHub
+
+Việc này phải làm trên web, không làm được từ code. Làm **sau khi** CI đã chạy xanh ít nhất
+một lần (GitHub chỉ cho chọn những check đã từng chạy).
+
+1. Repo `Tluan-source/Homes_Care` → **Settings** → **Branches** → **Add branch ruleset**
+   (hoặc *Add rule* ở giao diện cũ). Ruleset name: `main`, Enforcement: **Active**.
+2. Target branches → **Include default branch**.
+3. Bật:
+   - **Restrict deletions**
+   - **Block force pushes**
+   - **Require a pull request before merging** (làm một mình thì để *Required approvals = 0*)
+   - **Require status checks to pass** → **Add checks**: `check`, `db`, `secrets`
+     → bật *Require branches to be up to date before merging*
+4. **Create**.
+
+Từ đó mọi thay đổi đi theo: tạo nhánh → push → mở pull request → CI xanh → merge.

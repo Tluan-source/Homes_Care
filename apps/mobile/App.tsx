@@ -7,7 +7,7 @@
 
 import React, { useMemo, useState } from 'react';
 import {
-  FlatList, Platform, Pressable, StatusBar, StyleSheet, Text, TextInput, View,
+  FlatList, Pressable, StatusBar, StyleSheet, Text, TextInput, View,
 } from 'react-native';
 import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { formatShortVND, isUrgent } from '@homescare/core';

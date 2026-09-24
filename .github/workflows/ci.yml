@@ -1,0 +1,71 @@
+# ============================================================================
+# CI — mọi pull request vào main phải qua đủ 3 job này mới merge được.
+#
+#   check    lint · typecheck · 39 test lõi · quét khoá trong apps/ + packages/
+#   db       dựng database từ số 0 trên Postgres 16, chạy 65 test phân quyền
+#   secrets  gitleaks quét TOÀN BỘ lịch sử git (khoá đã commit rồi xoá vẫn bị bắt)
+#
+# Bật bắt buộc ở GitHub: Settings → Branches → main → Require status checks:
+#   "check", "db", "secrets".
+# ============================================================================
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      # `npm ci` đọc đúng package-lock.json — lệch lock là đỏ ngay, không âm thầm nâng thư viện.
+      # postinstall tự dựng @homescare/core.
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run check:secrets
+
+  db:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: postgres
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+      # Postgres trắng — 00_shim.sql dựng lại auth/storage/vai giống Supabase.
+      - run: bash supabase/tests/run.sh
+        env:
+          PGURL: postgresql://postgres:postgres@127.0.0.1:5432/postgres
+
+  secrets:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

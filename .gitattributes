@@ -1,0 +1,3 @@
+# Script shell phải giữ LF — CI chạy trên Linux, CRLF là bash báo lỗi "\r: command not found".
+*.sh text eol=lf
+*.sql text eol=lf

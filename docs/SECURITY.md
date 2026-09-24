@@ -26,7 +26,7 @@ RLS**; lộ nó là mất sạch dữ liệu của mọi chủ nhà.
 **Bản build React Native giải nén ra là đọc được.** Coi mã app là công khai. Không có
 cách nào "giấu" một chuỗi trong app.
 
-> Chưa dựng: bước CI quét chuỗi `service_role` và `SEPAY_` trong `apps/`. Xem §6.
+> CI quét khoá ở hai lớp: `scripts/check-secrets.sh` (chuỗi `service_role`, `SEPAY_*`, JWT dán cứng trong `apps/` + `packages/`) và gitleaks trên toàn bộ lịch sử git.
 
 ---
 
@@ -126,7 +126,7 @@ Viết ra để không ai tưởng đã xong.
 | **Chọn cách đăng nhập** | chặn P0 | OTP SMS? email + mật khẩu? Chưa quyết. Nếu OTP SMS thì cần nhà cung cấp và tính phí |
 | **Bắt buộc 2 lớp cho OWNER** | cao | Tài khoản chủ nhà thấy toàn bộ tiền. Mất tài khoản này là mất tất cả |
 | **Thu hồi phiên khi quản lý nghỉ việc** | cao | Hiện xoá `memberships` là mất quyền, nhưng phiên đang mở vẫn sống tới khi token hết hạn. Cần quy trình thu hồi rõ |
-| **CI quét khoá bí mật** | cao | Đã ghi trong ARCHITECTURE §5.1 nhưng chưa dựng. Một lần sơ ý là lộ vĩnh viễn |
+| ~~CI quét khoá bí mật~~ | ✅ xong | `npm run check:secrets` + gitleaks trong `.github/workflows/ci.yml` |
 | **Giới hạn tần suất gọi webhook** | trung bình | Endpoint public, chưa có rate limit |
 | **Rà log không rò dữ liệu** | trung bình | `console.error` đang log cả object lỗi, có thể kèm nội dung hàng dữ liệu |
 | **Sao lưu và diễn tập khôi phục** | cao | Supabase có sao lưu, nhưng **chưa ai thử khôi phục bao giờ**. Bản sao lưu chưa từng khôi phục thử thì coi như chưa có |

@@ -129,7 +129,7 @@ Ba lý do bắt nó phải thuần:
 2. **Test được bằng vài object dựng tay**, không cần trình duyệt, không cần database.
 3. **Đổi giao diện không phải viết lại nghiệp vụ.**
 
-> **`core` không được import bất cứ thứ gì từ `apps/` hay `supabase/`.** Có ESLint chặn.
+> **`core` không được import bất cứ thứ gì từ `apps/` hay `supabase/`.** ESLint chặn (`eslint.config.mjs`), cùng với luật cấm `new Date()`/`Date.now()` trong core.
 
 ### 3.3 Không có đồng hồ toàn cục
 
@@ -256,10 +256,10 @@ chạy hai transaction song song.
 
 | Rủi ro | Cách chặn |
 |---|---|
-| App và server tính ra hai số tiền khác nhau | Dùng chung `packages/core`. ESLint chặn app tự tính tiền |
+| App và server tính ra hai số tiền khác nhau | Dùng chung `packages/core`. ESLint chặn core phụ thuộc ngược; việc app tự tính tiền thì chặn ở review (chưa có luật lint máy móc nào bắt được) |
 | Thêm tính năng làm sai quy tắc tiền cũ | Test `core` chạy trong CI, không merge được nếu đỏ |
 | Quên xoá bộ nhớ đệm sau khi ghi tiền | Hàm ghi tiền tự lo xoá đệm, người gọi không phải nhớ |
-| Ai đó nhét khoá bí mật vào app | CI quét chuỗi `service_role` và khoá SePay trong `apps/` |
+| Ai đó nhét khoá bí mật vào app | CI: `check:secrets` quét `apps/` + `packages/`, gitleaks quét toàn bộ lịch sử git |
 | Sửa schema làm hỏng dữ liệu cũ | Migration đánh số tăng dần, không sửa file cũ, chỉ thêm file mới |
 
 ### 5.2 Đổi quy tắc nghiệp vụ thì sửa ở đâu
@@ -272,8 +272,8 @@ mà là **tìm chỗ để sửa**:
 | Mức phạt, ân hạn, trần, mốc thanh lý | `core/penalty/policy.ts` |
 | Mốc nhắc D-3 / D0 / D+1 / D+3 | `core/payment/reminders.ts` |
 | Cách tính giá thuê lẻ | `core/pricing/` |
-| Ngày neo kỳ thu | `core/time/schedule.ts` |
-| Ngân hàng hỗ trợ VietQR | `core/payment/banks.ts` |
+| Ngày neo kỳ thu | `core/billing/schedule.ts` |
+| Ngân hàng hỗ trợ VietQR | `core/payment/vietqr.ts` |
 | Màu sắc, khoảng cách, cỡ chữ | `apps/mobile/src/theme/` |
 | Ai được thấy dữ liệu gì | `supabase/migrations/*_rls.sql` |
 

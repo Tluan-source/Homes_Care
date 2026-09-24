@@ -7,19 +7,30 @@
     "apps/*"
   ],
   "scripts": {
+    "postinstall": "npm run build",
     "build": "npm run build -w @homescare/core",
     "test": "npm run test -w @homescare/core",
+    "lint": "eslint .",
+    "typecheck": "npm run typecheck -w @homescare/core && npm run typecheck -w @homescare/mobile",
+    "check:secrets": "bash scripts/check-secrets.sh",
+    "check": "npm run lint && npm run typecheck && npm test && npm run check:secrets",
     "db:start": "supabase start",
     "db:reset": "supabase db reset",
     "db:test": "bash supabase/tests/run.sh",
-    "typecheck": "npm run typecheck -w @homescare/core && npm run typecheck -w @homescare/mobile",
     "android": "npm run android -w @homescare/mobile",
     "start": "npm run start -w @homescare/mobile",
     "prebuild": "npm run prebuild -w @homescare/mobile"
   },
   "devDependencies": {
+    "@eslint/js": "^10.0.1",
     "@types/node": "^22.0.0",
+    "@types/react": "^19.3.0",
+    "eslint": "^10.11.0",
+    "globals": "^17.12.0",
     "typescript": "^5.9.0",
-    "@types/react": "^19.3.0"
+    "typescript-eslint": "^8.70.1"
+  },
+  "engines": {
+    "node": ">=20"
   }
 }

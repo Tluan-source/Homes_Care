@@ -356,7 +356,7 @@ vẫn phải tự tay gửi ~200 mã QR mỗi tháng. Câu này cần đo bằng
 |---|---|
 | Ngày tháng | Tháng ngắn, năm nhuận, múi giờ. Đã có `addMonthsAnchored` + test, **đừng tự viết lại bằng `setMonth`** |
 | Hai bộ máy tiền | Bệnh đã mắc một lần. Bất kỳ ai thêm một chỗ tính nợ thứ hai là bệnh tái phát |
-| Khoá bí mật lọt vào app | Bản build React Native giải nén ra là đọc được. Chưa có bước CI quét tự động |
+| Khoá bí mật lọt vào app | Bản build React Native giải nén ra là đọc được. CI đã quét (`check:secrets` + gitleaks), nhưng vẫn phải quét cả bản build trước khi phát hành |
 | `_shared/core.ts` sửa tay | Nó là **file sinh ra**. Sửa tay = có hai bộ quy tắc tiền khác nhau |
 | Chính sách RLS | ~~Chưa có test~~ → giờ có 65 test. Thêm view mới mà quên `security_invoker` thì hỏng ở `20_isolation.sql` |
 | View mới | Mỗi view thêm vào **phải** có `with (security_invoker = true)`, nếu không nó thành cửa hậu đi vòng qua RLS |
