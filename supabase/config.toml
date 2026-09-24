@@ -1,0 +1,43 @@
+# Cấu hình Supabase chạy cục bộ (`supabase start`).
+# Đây là môi trường THỬ trên máy bạn — không phải project thật trên cloud.
+
+project_id = "homescare"
+
+[api]
+enabled = true
+port = 54321
+# CHỈ phơi ra schema `public`. Cố ý KHÔNG phơi `auth_helpers`: các hàm trong đó là
+# ruột của hệ thống phân quyền, không có lý do gì để gọi được từ ngoài qua REST.
+schemas = ["public"]
+extra_search_path = ["public", "extensions"]
+max_rows = 1000
+
+[db]
+port = 54322
+shadow_port = 54320
+major_version = 16
+
+[studio]
+enabled = true
+port = 54323
+
+[auth]
+enabled = true
+site_url = "http://127.0.0.1:3000"
+jwt_expiry = 3600
+enable_refresh_token_rotation = true
+# Chưa chốt cách đăng nhập thật (xem docs/SECURITY.md §7 câu 1). Bật email cho môi
+# trường thử để còn tạo được tài khoản mà test.
+enable_signup = true
+
+[auth.email]
+enable_signup = true
+enable_confirmations = false
+
+[storage]
+enabled = true
+# Ảnh CCCD tối đa 8MB; giới hạn theo từng bucket đặt trong 0005_storage.sql.
+file_size_limit = "100MiB"
+
+[analytics]
+enabled = false

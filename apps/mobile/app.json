@@ -1,0 +1,21 @@
+{
+  "expo": {
+    "name": "HomesCare",
+    "slug": "homescare",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "scheme": "homescare",
+    "userInterfaceStyle": "automatic",
+    "newArchEnabled": true,
+    "android": {
+      "package": "vn.homescare.app",
+      "adaptiveIcon": {
+        "backgroundColor": "#FFC72E"
+      }
+    },
+    "ios": {
+      "bundleIdentifier": "vn.homescare.app",
+      "supportsTablet": false
+    }
+  }
+}

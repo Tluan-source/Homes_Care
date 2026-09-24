@@ -1,0 +1,32 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Chạy app (Expo)",
+      "type": "shell",
+      "command": "npm start",
+      "problemMatcher": [],
+      "presentation": { "reveal": "always", "panel": "dedicated" }
+    },
+    {
+      "label": "Chạy app trên Android",
+      "type": "shell",
+      "command": "npm run android",
+      "problemMatcher": []
+    },
+    {
+      "label": "Test lõi nghiệp vụ",
+      "type": "shell",
+      "command": "npm test",
+      "group": { "kind": "test", "isDefault": true },
+      "problemMatcher": []
+    },
+    {
+      "label": "Kiểm kiểu (typecheck)",
+      "type": "shell",
+      "command": "npm run typecheck",
+      "group": { "kind": "build", "isDefault": true },
+      "problemMatcher": ["$tsc"]
+    }
+  ]
+}

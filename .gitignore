@@ -1,0 +1,16 @@
+node_modules/
+dist/
+dist-tests/
+package-lock.json
+.expo/
+*.log
+.env
+.env.local
+
+# Thư mục native SINH RA, không phải mã nguồn.
+# Expo tạo lại bằng `npm run prebuild` từ app.json + các plugin. Đưa vào git thì mỗi lần
+# nâng cấp Expo sẽ phải giải xung đột trong hàng trăm file Gradle/Java do máy sinh —
+# việc đó không ai muốn làm, và cũng không cần làm.
+# Chỉ đưa vào git khi bạn thực sự phải sửa tay file native nào đó (xem docs/RUN.md).
+apps/mobile/android/
+apps/mobile/ios/

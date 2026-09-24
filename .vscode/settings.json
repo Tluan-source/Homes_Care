@@ -1,0 +1,23 @@
+{
+  "typescript.tsdk": "node_modules/typescript/lib",
+  "typescript.enablePromptUseWorkspaceTsdk": true,
+
+  "editor.formatOnSave": true,
+  "editor.codeActionsOnSave": { "source.organizeImports": "explicit" },
+
+  "files.exclude": {
+    "**/node_modules": true,
+    "**/dist": true,
+    "**/dist-tests": true,
+    "apps/mobile/android": true,
+    "apps/mobile/.expo": true
+  },
+  "search.exclude": {
+    "**/node_modules": true,
+    "**/dist": true,
+    "**/dist-tests": true,
+    "apps/mobile/android": true
+  },
+
+  "[sql]": { "editor.formatOnSave": false }
+}

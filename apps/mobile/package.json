@@ -1,0 +1,28 @@
+{
+  "name": "@homescare/mobile",
+  "version": "0.1.0",
+  "private": true,
+  "main": "index.js",
+  "scripts": {
+    "start": "npm run core && expo start",
+    "android": "npm run core && expo start --android",
+    "ios": "npm run core && expo start --ios",
+    "prebuild": "expo prebuild --platform android --clean",
+    "core": "npm run build -w @homescare/core --prefix ../..",
+    "typecheck": "tsc --noEmit",
+    "android:studio": "expo prebuild --platform android && echo 'Mở apps/mobile/android bằng Android Studio'"
+  },
+  "dependencies": {
+    "@homescare/core": "*",
+    "expo": "~57.0.24",
+    "expo-status-bar": "~57.0.1",
+    "expo-system-ui": "~57.0.4",
+    "react": "19.2.3",
+    "react-native": "0.86.3",
+    "react-native-safe-area-context": "~5.7.0"
+  },
+  "devDependencies": {
+    "@expo/ngrok": "^4.1.3",
+    "typescript": "~5.9.0"
+  }
+}

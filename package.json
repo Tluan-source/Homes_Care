@@ -1,0 +1,25 @@
+{
+  "name": "homescare",
+  "private": true,
+  "version": "0.1.0",
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
+  "scripts": {
+    "build": "npm run build -w @homescare/core",
+    "test": "npm run test -w @homescare/core",
+    "db:start": "supabase start",
+    "db:reset": "supabase db reset",
+    "db:test": "bash supabase/tests/run.sh",
+    "typecheck": "npm run typecheck -w @homescare/core && npm run typecheck -w @homescare/mobile",
+    "android": "npm run android -w @homescare/mobile",
+    "start": "npm run start -w @homescare/mobile",
+    "prebuild": "npm run prebuild -w @homescare/mobile"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "typescript": "^5.9.0",
+    "@types/react": "^19.3.0"
+  }
+}
