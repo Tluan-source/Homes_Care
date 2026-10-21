@@ -77,3 +77,6 @@ verify_jwt = false
 # Chủ nhà gọi từ app → BẮT BUỘC có JWT.
 [functions.invite-member]
 verify_jwt = true
+
+[functions.create-payment-request]
+verify_jwt = true

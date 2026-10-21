@@ -22,6 +22,7 @@
     "functions:deploy": "npm run bundle:edge && supabase functions deploy",
     "android": "npm run android -w @homescare/mobile",
     "start": "npm run start -w @homescare/mobile",
+    "start:tunnel": "npm run start:tunnel -w @homescare/mobile",
     "prebuild": "npm run prebuild -w @homescare/mobile"
   },
   "devDependencies": {

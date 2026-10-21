@@ -5,6 +5,7 @@
   "main": "index.js",
   "scripts": {
     "start": "npm run core && expo start",
+    "start:tunnel": "npm run core && expo start --tunnel",
     "android": "npm run core && expo start --android",
     "ios": "npm run core && expo start --ios",
     "prebuild": "expo prebuild --platform android --clean",
@@ -14,12 +15,25 @@
   },
   "dependencies": {
     "@homescare/core": "*",
+    "@react-navigation/bottom-tabs": "^7.19.2",
+    "@react-navigation/native": "^7.4.1",
+    "@react-navigation/native-stack": "^7.19.2",
+    "@supabase/supabase-js": "^2.117.1",
     "expo": "~57.0.24",
+    "expo-clipboard": "~57.0.2",
+    "expo-file-system": "~57.0.7",
+    "expo-linking": "~57.0.10",
+    "expo-secure-store": "~57.0.4",
+    "expo-sharing": "~57.0.21",
     "expo-status-bar": "~57.0.1",
     "expo-system-ui": "~57.0.4",
     "react": "19.2.3",
     "react-native": "0.86.3",
-    "react-native-safe-area-context": "~5.7.0"
+    "react-native-qrcode-svg": "^6.3.26",
+    "react-native-safe-area-context": "~5.7.0",
+    "react-native-screens": "~4.26.0",
+    "react-native-svg": "^15.15.4",
+    "react-native-url-polyfill": "^2.0.0"
   },
   "devDependencies": {
     "@expo/ngrok": "^4.1.3",

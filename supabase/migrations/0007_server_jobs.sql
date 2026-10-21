@@ -31,7 +31,7 @@ alter table bank_transactions
   add column if not exists resolved_by  uuid references profiles(id);
 
 create index if not exists bank_tx_unprocessed on bank_transactions (received_at) where processed_at is null;
-create index if not exists bank_tx_exceptions  on bank_transactions (received_at desc)
+create index if not exists bank_tx_exceptions_idx on bank_transactions (received_at desc)
   where processed_at is not null and match_kind not in ('PAID', 'DUPLICATE') and resolved_at is null;
 
 -- Hàng đợi ngoại lệ cho màn "Cần xử lý". security_invoker: RLS của bank_transactions
@@ -46,6 +46,30 @@ create or replace view bank_tx_exceptions
      and resolved_at is null;
 
 /*
+ * Cấp số phiếu thu KHÔNG TRÙNG: PT-YYYYMM-NNNN (tháng giờ VN, cùng định dạng makeDocNo()).
+ *
+ * Bộ đếm `doc_counters` là nguồn chính, nhưng phiếu thu có thể đã tồn tại với số đó
+ * (nhập tay, dữ liệu chuyển từ sổ cũ). Trùng số thì UNIQUE(doc_no) làm hỏng cả lần ghi
+ * tiền — nên bỏ qua số đã có, lấy số kế tiếp.
+ * greatest(): quá 9999 phiếu/tháng thì dài ra, không bị lpad cắt cụt thành số trùng.
+ */
+create or replace function next_receipt_no() returns text
+language plpgsql security definer set search_path = public as $$
+declare v_seq int; v_no text;
+begin
+  loop
+    v_seq := next_doc_seq('PT');
+    v_no  := 'PT-' || to_char(now() at time zone 'Asia/Ho_Chi_Minh', 'YYYYMM') || '-'
+             || lpad(v_seq::text, greatest(4, length(v_seq::text)), '0');
+    exit when not exists (select 1 from receipts where doc_no = v_no);
+  end loop;
+  return v_no;
+end $$;
+
+revoke all on function next_receipt_no() from public, anon, authenticated;
+grant execute on function next_receipt_no() to service_role;
+
+/*
  * Xử lý MỘT giao dịch đã lưu — trọn trong một transaction:
  *   (khớp) cấp số phiếu thu + ghi tiền + sinh phiếu thu
  *   + đánh dấu đã xử lý + ghi nhật ký.
@@ -54,7 +78,7 @@ create or replace view bank_tx_exceptions
  * cũ, không ghi gì thêm. Đó là điều kiện để webhook trả 500 và để SePay gửi lại.
  *
  * Số phiếu thu cấp BÊN TRONG hàm (bản cũ cấp ở Edge Function trước khi settle):
- * settle lỗi thì bộ đếm cũng lùi theo, số phiếu không bị nhảy cóc.
+ * settle lỗi thì cả transaction lùi lại — bộ đếm cũng lùi theo, số phiếu không nhảy cóc.
  *
  * Số tiền lấy từ HÀNG ĐÃ LƯU, không nhận từ tham số — không để người gọi truyền
  * một con số khác với con số ngân hàng báo.
@@ -71,7 +95,7 @@ declare
   v_kind    text := p_kind;
   v_reason  text := p_reason;
   v_receipt text;
-  v_seq     int;
+  v_status  text;
   v_org     uuid;
 begin
   select * into v_tx from bank_transactions where id = p_tx for update;
@@ -88,21 +112,26 @@ begin
   end if;
 
   if v_kind = 'PAID' then
-    begin
-      v_seq := next_doc_seq('PT');
-      -- Cùng định dạng makeDocNo() của core: PT-YYYYMM-0001 (tháng theo giờ Việt Nam).
-      -- greatest(): quá 9999 phiếu/tháng thì dài ra, không bị lpad cắt cụt.
-      v_receipt := 'PT-' || to_char(now() at time zone 'Asia/Ho_Chi_Minh', 'YYYYMM') || '-'
-                   || lpad(v_seq::text, greatest(4, length(v_seq::text)), '0');
+    /*
+     * Kiểm trạng thái phiếu TRƯỚC khi ghi, thay vì ghi rồi bắt lỗi.
+     * Thường gặp nhất: khách chuyển HAI LẦN cùng nội dung — lần một đã ghi nhận phiếu.
+     * Không tự ghi lần hai; đẩy sang hàng đợi ngoại lệ để người quyết (hoàn tiền hay
+     * trừ vào kỳ sau).
+     *
+     * Bản đầu bắt MỌI lỗi unique_violation rồi coi là "chuyển trùng" — nên một lần trùng
+     * SỐ PHIẾU THU cũng biến giao dịch khớp chuẩn thành ngoại lệ, âm thầm. Bộ test bắt
+     * được. Giờ lỗi thật thì để nó nổ ra: webhook trả 500, SePay gửi lại, làm lại từ đầu.
+     */
+    select status::text into v_status from payment_requests where id = p_request for update;
+    if v_status is null or v_status not in ('DRAFT', 'SENT') then
+      v_kind   := 'UNMATCHED';
+      v_reason := case when v_status = 'SETTLED' then 'phiếu đã được ghi nhận bởi giao dịch khác — có thể khách chuyển trùng'
+                       when v_status = 'CANCELLED' then 'phiếu đã huỷ — khách dùng QR cũ'
+                       else 'không tìm thấy phiếu' end;
+    else
+      v_receipt := next_receipt_no();
       perform settle_request(p_request, p_tx, v_tx.amount, v_receipt);
-    exception when unique_violation or check_violation or no_data_found then
-      -- Thường gặp nhất: khách chuyển HAI LẦN cùng nội dung, lần một đã ghi nhận phiếu.
-      -- Không tự ghi lần hai — đẩy sang hàng đợi ngoại lệ để người quyết (hoàn tiền,
-      -- hay trừ vào kỳ sau). Khối begin/exception tự lùi cả bộ đếm số phiếu.
-      v_receipt := null;
-      v_kind    := 'UNMATCHED';
-      v_reason  := 'không ghi nhận được: ' || sqlerrm;
-    end;
+    end if;
   end if;
 
   update bank_transactions
@@ -241,7 +270,7 @@ end $$;
 revoke all on function register_push_token(text, text) from public, anon;
 grant execute on function register_push_token(text, text) to authenticated;
 
--- rollback: drop function register_push_token, end_expired_contracts, process_bank_tx;
+-- rollback: drop function register_push_token, end_expired_contracts, process_bank_tx, next_receipt_no;
 --           drop table push_tokens, notifications; drop view bank_tx_exceptions;
 --           alter table bank_transactions drop column processed_at, match_kind, match_code,
 --           match_reason, request_id, resolved_at, resolved_by.

@@ -2,7 +2,7 @@
 # CI — mọi pull request vào main phải qua đủ 3 job này mới merge được.
 #
 #   check    lint · typecheck · 39 test lõi · quét khoá trong apps/ + packages/
-#   db       dựng database từ số 0 trên Postgres 16, chạy 87 test phân quyền
+#   db       dựng database từ số 0 trên Postgres 16, chạy 139 test phân quyền
 #   functions  sinh _shared/core.ts rồi deno check mọi Edge Function
 #   secrets  gitleaks quét TOÀN BỘ lịch sử git (khoá đã commit rồi xoá vẫn bị bắt)
 #

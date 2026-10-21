@@ -14,9 +14,9 @@ Kiểm trực tiếp trên máy, không đọc theo tài liệu:
 |---|---|
 | `npm test` (lõi nghiệp vụ) | ✅ 39/39 đạt |
 | `npm run typecheck` | ✅ Xanh *(24/09: nguyên nhân là app kiểm kiểu trước khi lõi được dựng — nay typecheck tự dựng lõi)* |
-| Migrations + test RLS | ✅ 87/87 đạt (24/09) · ⏳ **bước 3 thêm 29 test → cần bạn chạy: phải ra 116/116** |
+| Migrations + test RLS | ✅ **139/139 đạt** trên Postgres 16 sạch (24/09, gồm 0007–0008) |
 | Webhook SePay | ⏳ Đã viết lại + có `bundle:edge` (bước 3) — chờ bạn chạy `functions:check` và thử trên staging |
-| App mobile | ⚠️ 1/8 màn hình, dữ liệu giả, chưa có đăng nhập, chưa nối Supabase |
+| App mobile | ⏳ **Đã nối Supabase + đủ màn theo bản demo** (24/09) — typecheck/lint xanh, bundle Android build được; chờ bạn chạy thử trên staging |
 | Nhắc hạn tự động | ⏳ Đã có `run-reminders` + lịch `cron.sql` — chờ deploy |
 | Quản lý mã nguồn | ✅ Git + GitHub `Tluan-source/Homes_Care`, có CI |
 | Tài nguyên store | ❌ Không có icon, splash, `eas.json` |
@@ -65,7 +65,7 @@ Kiểm trực tiếp trên máy, không đọc theo tài liệu:
 ## 2. Chốt quyết định còn treo
 
 - [x] ⛔ **S1** — Đăng nhập: **email + mật khẩu**. *(chốt 24/09)* Không cho tự đăng ký — chủ nhà tạo tài khoản cho quản lý. Mật khẩu ≥ 10 ký tự, có chữ và số. Đã cấu hình ở `supabase/config.toml`.
-- [x] **S2** — Quản lý nghỉ việc → chủ nhà **khoá** tài khoản (không xoá, mở lại được). *(chốt 24/09)* App chỉ có 2 vai: chủ nhà và quản lý. Đã dựng ở `0006_account_lock.sql`: `lock_member()` / `unlock_member()`, hiệu lực ngay ở database kể cả khi phiên đăng nhập còn sống, có ghi nhật ký. 22 test mới trong `50_lock.sql` → tổng **87/87 đạt**.
+- [x] **S2** — Quản lý nghỉ việc → chủ nhà **khoá** tài khoản (không xoá, mở lại được). *(chốt 24/09)* App chỉ có 2 vai: chủ nhà và quản lý. Đã dựng ở `0006_account_lock.sql`: `lock_member()` / `unlock_member()`, hiệu lực ngay ở database kể cả khi phiên đăng nhập còn sống, có ghi nhật ký. 22 test mới trong `50_lock.sql` → tổng **139/139 đạt**.
 - [x] **S3** — Ảnh CCCD **giữ và mã hoá tới khi hợp đồng kết thúc**, rồi xoá. *(chốt 24/09)* Mốc xoá đổi từ 90 ngày → 0 ngày (`id_doc_retention_days()` trong `0006`). ⚠️ Đánh đổi: tranh chấp cọc sau ngày kết thúc sẽ không còn ảnh CCCD để đối chiếu — hợp đồng giấy và biên bản bàn giao vẫn còn. Phần mã hoá: xem mục 5.
 - [x] **Nhắc & đối soát** *(chốt 24/09)*:
   - **Nhắc chỉ trong app**, chỉ cho chủ nhà và quản lý. App **không** nhắn cho khách.
@@ -93,7 +93,7 @@ Kiểm trực tiếp trên máy, không đọc theo tài liệu:
 - [x] **[code]** `scripts/test-payment.mjs`: sinh phiếu + QR + body SePay giả lập để thử trên staging.
 
 **Kiểm tra trên máy — [bạn]** *(DEPLOY.md §1)*
-- [ ] ⛔ `npm run check` xanh · `npm run functions:check` không lỗi · `npm run db:test` ra **116/116**.
+- [ ] ⛔ `npm run check` xanh · `npm run functions:check` không lỗi · `npm run db:test` ra **139/139**.
 - [ ] Bật thêm check `functions` trong bảo vệ nhánh `main` (phụ lục cuối file).
 
 **Dựng cloud — [bạn]**
@@ -123,25 +123,29 @@ Kiểm trực tiếp trên máy, không đọc theo tài liệu:
 
 ## 4. App mobile — tính năng tối thiểu để release (P0 + P1)
 
-- [ ] ⛔ Màn đăng nhập email + mật khẩu, quên mật khẩu (email đặt lại), lưu phiên an toàn (`expo-secure-store`), đăng xuất.
-- [ ] Màn **Tài khoản quản lý** (chỉ chủ nhà): danh sách, mời mới, khoá / mở khoá (gọi `lock_member` / `unlock_member`).
-- [ ] Tài khoản bị khoá đăng nhập vào → hiện "Tài khoản đã bị khoá, liên hệ chủ nhà" (đọc `profiles.locked_at`), không hiện màn hình trống.
-- [ ] ⛔ Lớp dữ liệu Supabase thay `demo.ts` (chỉ `SUPABASE_URL` + `ANON_KEY` qua `EXPO_PUBLIC_*`).
-- [ ] Điều hướng: thanh dưới 3 mục — Căn hộ · Cần xử lý · Sổ quỹ.
-- [ ] Chi tiết căn 5 tab.
+- [x] ⛔ Màn đăng nhập email + mật khẩu, quên mật khẩu (email đặt lại), đặt mật khẩu từ link mời, lưu phiên trong SecureStore, đăng xuất.
+- [x] Màn **Tài khoản quản lý** (chỉ chủ nhà): danh sách, mời mới, khoá / mở khoá (gọi `lock_member` / `unlock_member`).
+- [x] Tài khoản bị khoá đăng nhập vào → hiện "Tài khoản đã bị khoá, liên hệ chủ nhà" (đọc `profiles.locked_at`), không hiện màn hình trống.
+- [x] ⛔ Lớp dữ liệu Supabase thay `demo.ts` (`src/data/api.ts`) (chỉ `SUPABASE_URL` + `ANON_KEY` qua `EXPO_PUBLIC_*`).
+- [x] Điều hướng: thanh dưới 3 mục — Căn hộ · Cần xử lý · Sổ quỹ.
+- [x] Chi tiết căn 5 tab (ghi chú lưu thật — bảng `unit_notes`, chỉ ghi thêm).
 - [ ] Thêm căn (3 ô riêng tòa/tầng/mã căn, xem trước mã).
 - [ ] Luồng Cho thuê 5 bước, hiện TỔNG PHẢI THU trước khi lưu.
 - [ ] ⛔ **Gửi QR qua Zalo** — việc tay nhiều nhất của quản lý, phải tối ưu:
-  - [ ] Nút **Gửi qua Zalo**: mở bảng chia sẻ của máy với **ảnh QR + tin nhắn soạn sẵn** (tên căn, kỳ, số tiền, số TK, nội dung chuyển khoản). Quản lý chỉ chọn khách trong Zalo rồi gửi.
-  - [ ] Tin soạn sẵn có dòng **"Vui lòng giữ nguyên nội dung chuyển khoản"** — khách sửa nội dung là mất mã, SePay không tự khớp được.
-  - [ ] Nút **Sao chép nội dung** và **Lưu ảnh QR** cho khách không dùng Zalo.
-  - [ ] Sau khi chia sẻ, hỏi **"Đã gửi cho khách chưa?"** → đánh dấu `SENT` + `sent_at`. App không biết chắc Zalo đã gửi, nên phải hỏi, không tự đánh dấu.
-  - [ ] Danh sách **"Chưa gửi QR"** ở màn Cần xử lý, xếp theo hạn — bấm lần lượt từ trên xuống.
+  - [x] Nút **Gửi qua Zalo**: mở bảng chia sẻ của máy với **ảnh QR + tin nhắn soạn sẵn** (tên căn, kỳ, số tiền, số TK, nội dung chuyển khoản). Quản lý chỉ chọn khách trong Zalo rồi gửi.
+  - [x] Tin soạn sẵn có dòng **"Vui lòng giữ nguyên nội dung chuyển khoản"** — khách sửa nội dung là mất mã, SePay không tự khớp được.
+  - [x] Nút **Sao chép nội dung** và **Lưu ảnh QR** cho khách không dùng Zalo.
+  - [x] Sau khi chia sẻ, hỏi **"Đã gửi cho khách chưa?"** → đánh dấu `SENT` + `sent_at`. App không biết chắc Zalo đã gửi, nên phải hỏi, không tự đánh dấu.
+  - [x] Danh sách **"Chưa gửi QR"** ở màn Cần xử lý, xếp theo hạn — bấm lần lượt từ trên xuống.
   - [ ] Tạo sẵn phiếu + QR cho **mọi kỳ tới hạn hôm nay** chỉ bằng một nút, để quản lý chỉ còn việc bấm gửi.
-- [ ] Hàng đợi ngoại lệ (PARTIAL / OVERPAID / UNMATCHED / MULTI_PERIOD) + ghi nhận tiền mặt.
+- [x] Hàng đợi ngoại lệ (ghép vào phiếu · đánh dấu đã xử lý ngoài, bắt buộc ghi lý do) + ghi nhận tiền mặt.
 - [ ] Xin khất / duyệt khất (quản lý ≤ 7 ngày, trên nữa chủ nhà).
-- [ ] Sổ quỹ khoá theo chủ nhà đăng nhập.
-- [ ] Chụp/tải ảnh CCCD qua signed URL 60 giây, không cache.
+- [x] Sổ quỹ khoá theo chủ nhà đăng nhập (RLS).
+- [x] Xem ảnh CCCD qua signed URL 60 giây, không cache. *(chụp/tải lên làm cùng luồng Cho thuê)*
+- [ ] **Còn "làm ở đợt sau"** (bấm vào hiện thông báo, giống bản demo): Thêm căn · Cho thuê · Cọc giữ chỗ · Kết thúc bảo trì · Gia hạn HĐ · duyệt xin khất trong app · video bàn giao.
+- [ ] **Tiền phạt trễ** đã cộng vào phiếu và QR, nhưng khi tiền về chỉ rót vào các kỳ gốc — phần phạt chưa có dòng riêng trong sổ quỹ. Cần một kỳ loại `PENALTY` hoặc bảng riêng.
+- [ ] Đăng ký push token (`register_push_token`) từ app — Expo Go không nhận push từ xa; làm khi có bản build EAS.
+- [ ] Ép MFA cho chủ nhà trong app (đăng ký mã TOTP lần đầu đăng nhập).
 - [ ] Không còn nút chết — bấm vào đâu cũng có màn hình thật.
 - [ ] Trạng thái rỗng, đang tải, mất mạng (app online-only: báo rõ, không cho ghi).
 - [ ] Mọi thứ bấm được có `accessibilityLabel`.

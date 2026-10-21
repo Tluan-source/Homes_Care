@@ -18,7 +18,7 @@ Bốn tài liệu trong `docs/` trả lời bốn câu khác nhau. Đừng đọ
 ## 1. Tóm tắt một đoạn
 
 Lõi nghiệp vụ đã xong và có test đầy đủ (39/39). **Database giờ đã chạy thật** trên
-PostgreSQL 16 và có **87 test phân quyền, tất cả đều đạt** — chạy được cả trên máy lẫn
+PostgreSQL 16 và có **139 test phân quyền, tất cả đều đạt** — chạy được cả trên máy lẫn
 trên Supabase thật. App chạy được nhưng mới có **một màn hình** và đang chạy bằng **dữ
 liệu giả**. Hàm nhận tiền vẫn **chưa deploy, và chưa biên dịch được** vì thiếu một file
 sinh ra (xem §3).
@@ -75,16 +75,16 @@ vẫn báo nợ 102 triệu.
 | `apps/mobile` | ✅ **Chạy được** | `npm start` → quét QR bằng Expo Go, hiện danh sách **47 căn** (40 đã đầy · 6 trống · 1 bảo trì; 9 căn đang nợ, tổng 58.200.000đ) |
 | `supabase/migrations` (6 file) | ✅ **Chạy sạch** | Dựng từ database rỗng trên PostgreSQL 16: 19 bảng, 8 enum, 12 hàm, 8 trigger, 2 view, 36 policy |
 | `supabase/seed.sql` | ✅ **Chạy được** | **Hai tổ chức** khác nhau, 4 căn, 4 hợp đồng phủ cả ba mức thuê |
-| `supabase/tests/` | ✅ **87/87 đạt** | `npm run db:test` — dựng lại từ số 0 rồi chạy toàn bộ |
+| `supabase/tests/` | ✅ **139/139 đạt** | `npm run db:test` — dựng lại từ số 0 rồi chạy toàn bộ |
 | `supabase/functions/*` (4 hàm) | ⏳ **Đã viết, chưa deploy** | Bước 3 (24/09): webhook viết lại an toàn khi SePay gửi lại, `run-reminders`, `purge-expired-docs`, `invite-member`; `npm run bundle:edge` sinh `_shared/core.ts`. Cách deploy + kiểm tra: `docs/DEPLOY.md` |
-| Kết nối app ↔ Supabase | ⛔ **Chưa có** | Không có file `.env`, không có client Supabase nào trong `apps/mobile` |
+| Kết nối app ↔ Supabase | ⏳ **Đã viết** | `apps/mobile/src/lib/supabase.ts` + `src/data/api.ts`; cấu hình qua `apps/mobile/.env` (xem RUN.md) |
 | Nhắc hạn tự động | ⏳ **Đã viết** | `run-reminders` + `supabase/cron.sql` (08:00 giờ VN), chờ deploy |
 
 **Chạy thử database:**
 
 ```bash
 npm run db:start     # supabase start
-npm run db:test      # dựng lại từ số 0, chạy 87 test phân quyền
+npm run db:test      # dựng lại từ số 0, chạy 139 test phân quyền
 ```
 
 Bộ test dùng đúng cách Supabase nhận diện người dùng ngoài đời — `set role authenticated`
@@ -299,10 +299,10 @@ tệ nhất — lúc đang có tiền thật trong tài khoản.
 | Quy tắc nghiệp vụ (`core`) | ██████████ 100% | — |
 | Test lõi | ██████████ 100% | 39/39 đạt |
 | Lược đồ database | ██████████ 100% | Chạy sạch từ database rỗng; có seed hai tổ chức |
-| Phân quyền RLS | ██████████ 100% | 87/87 test đạt, chạy được cả trên Supabase thật |
+| Phân quyền RLS | ██████████ 100% | 139/139 test đạt, chạy được cả trên Supabase thật |
 | Webhook nhận tiền | ██████░░░░ 60% | Thiếu `_shared/core.ts` + script `bundle:edge`; chưa deploy |
-| Giao diện | ██░░░░░░░░ 20% | 1/8 màn hình; chưa có điều hướng |
-| Nối app ↔ database | ░░░░░░░░░░ 0% | Chưa bắt đầu |
+| Giao diện | ███████░░░ 70% | Đủ màn theo bản demo (24/09): danh sách · chi tiết 5 tab · QR/Zalo · Cần xử lý · Sổ quỹ · Tài khoản · đăng nhập. Còn: Cho thuê, Thêm căn, Gia hạn, duyệt khất |
+| Nối app ↔ database | ████████░░ 80% | `src/data/api.ts` đọc/ghi thật qua RLS; phiếu thanh toán do Edge Function `create-payment-request` tạo. Chờ chạy thử trên staging |
 | Nhắc hạn tự động | ░░░░░░░░░░ 0% | Chưa bắt đầu |
 | Gửi QR qua Zalo | ░░░░░░░░░░ 0% | Chốt: quản lý **tự chia sẻ** từ app sang Zalo (không dùng ZNS) — chỉ cần bảng chia sẻ của máy |
 
