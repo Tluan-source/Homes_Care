@@ -67,9 +67,28 @@ Mã app giải nén ra đọc được. Coi nó là công khai.
 Một thay đổi = một file mới, đánh số tăng dần. **Không sửa file đã chạy trên production.**
 Mỗi file có dòng `-- rollback:` ghi cách quay lui.
 
+## Phiên bản
+
+Ba con số trong `apps/mobile/app.json`, mỗi số một việc:
+
+| Trường | Ví dụ | Tăng khi nào |
+|---|---|---|
+| `version` | `1.2.0` | Mỗi lần phát hành lên store. Theo semver: sửa lỗi → `1.2.1`, thêm tính năng → `1.3.0`, đổi lớn làm dữ liệu cũ không tương thích → `2.0.0` |
+| `android.versionCode` | `7` | **Mỗi bản build gửi lên Google Play**, kể cả bản test nội bộ. Số nguyên, chỉ tăng, không bao giờ dùng lại |
+| `ios.buildNumber` | `"7"` | Như trên, cho App Store / TestFlight. Giữ bằng `versionCode` cho dễ đối chiếu |
+
+`runtimeVersion` theo `appVersion`: bản cập nhật OTA chỉ đến được máy đang chạy **đúng
+`version` đó**. Đổi code native (thêm thư viện native, đổi quyền) thì **bắt buộc tăng `version`**
+và build lại — đẩy OTA lên bản native cũ là app sập lúc mở.
+
+Mỗi lần phát hành: tăng số → commit `release: v1.2.0` → gắn tag git `v1.2.0`.
+
 ## Trước khi mở pull request
 
 ```
-npm run typecheck     # không lỗi kiểu
-npm test              # lõi phải xanh
+npm run check         # lint + typecheck + test lõi + quét khoá — đúng những gì CI chạy
+npm run db:test       # nếu có sửa gì trong supabase/ (cần `supabase start`)
 ```
+
+CI (`.github/workflows/ci.yml`) chạy lại cả hai, cộng thêm gitleaks quét toàn bộ lịch sử git.
+Đỏ thì không merge được vào `main`.

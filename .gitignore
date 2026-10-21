@@ -1,11 +1,11 @@
 node_modules/
 dist/
 dist-tests/
-package-lock.json
 .expo/
 *.log
 .env
-.env.local
+.env.*
+!.env.example
 
 # Thư mục native SINH RA, không phải mã nguồn.
 # Expo tạo lại bằng `npm run prebuild` từ app.json + các plugin. Đưa vào git thì mỗi lần

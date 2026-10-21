@@ -11,11 +11,16 @@
       "package": "vn.homescare.app",
       "adaptiveIcon": {
         "backgroundColor": "#FFC72E"
-      }
+      },
+      "versionCode": 1
     },
     "ios": {
       "bundleIdentifier": "vn.homescare.app",
-      "supportsTablet": false
+      "supportsTablet": false,
+      "buildNumber": "1"
+    },
+    "runtimeVersion": {
+      "policy": "appVersion"
     }
   }
 }

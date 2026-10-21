@@ -9,7 +9,7 @@
     "ios": "npm run core && expo start --ios",
     "prebuild": "expo prebuild --platform android --clean",
     "core": "npm run build -w @homescare/core --prefix ../..",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "npm run core && tsc --noEmit",
     "android:studio": "expo prebuild --platform android && echo 'Mở apps/mobile/android bằng Android Studio'"
   },
   "dependencies": {

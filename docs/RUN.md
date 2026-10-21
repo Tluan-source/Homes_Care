@@ -83,14 +83,19 @@ Studio chút nào**.
 | `npm start` | Chạy Metro, quét QR bằng Expo Go |
 | `npm run android` | Cài vào máy ảo/điện thoại đang cắm |
 | `npm test` | 39 test lõi nghiệp vụ |
-| `npm run typecheck` | Kiểm kiểu cả lõi lẫn app |
+| `npm run typecheck` | Kiểm kiểu cả lõi lẫn app (tự dựng lõi trước) |
+| `npm run lint` | ESLint — chặn core import React/Supabase, chặn core đọc đồng hồ, chặn import sâu |
+| `npm run check` | Chạy đủ bộ kiểm như CI: lint + typecheck + test + quét khoá |
+| `npm run db:test` | 65 test phân quyền — **chỉ chạy được với database cục bộ** |
 | `npm run build` | Dựng `@homescare/core` |
 
 ## Lỗi hay gặp
 
-**`Unable to resolve @homescare/core`**
-→ Chưa dựng lõi. Chạy `npm run build`. Script `npm start` đã tự làm việc này, nhưng
-nếu bạn gọi thẳng `npx expo start` thì phải tự dựng trước.
+**`Unable to resolve @homescare/core`** / **`Cannot find module '@homescare/core'`**
+→ Chưa dựng lõi. Chạy `npm run build`. `npm install`, `npm start` và `npm run typecheck`
+đều đã tự dựng, nhưng nếu bạn gọi thẳng `npx expo start` hay `npx tsc` thì phải tự dựng trước.
+Kèm theo lỗi này thường là một loạt lỗi `implicitly has an 'any' type` — chúng là hệ quả,
+dựng lõi xong là hết.
 
 **`None of these files exist: packages/core/src/types.js`**
 → Có ai đó thêm `paths` trỏ vào `packages/core/src` trong `apps/mobile/tsconfig.json`.

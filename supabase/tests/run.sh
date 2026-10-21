@@ -20,6 +20,23 @@ ROOT="$(cd "$HERE/../.." && pwd)"
 
 URL="${PGURL:-postgresql://postgres:postgres@127.0.0.1:54322/postgres}"
 
+# CHẶN XOÁ NHẦM DATABASE THẬT. Script ngay dưới đây `drop schema public cascade`.
+# Chỉ cho chạy khi host là máy cục bộ (máy bạn, hoặc container Postgres của CI).
+# Muốn chạy trên project Supabase DÙNG THỬ thì phải nói rõ: ALLOW_REMOTE_DB_RESET=yes.
+# Không bao giờ đặt biến đó cho production.
+HOST=$(printf '%s' "$URL" | sed -E 's#^[a-z]+://([^@/]*@)?(\[[^]]*\]|[^:/?]*).*#\2#')
+case "$HOST" in
+  localhost|127.0.0.1|::1|\[::1\]) ;;
+  *)
+    if [ "${ALLOW_REMOTE_DB_RESET:-}" != "yes" ]; then
+      echo "⛔ Từ chối: '$HOST' không phải database cục bộ, mà script này XOÁ SẠCH dữ liệu." >&2
+      echo "   Nếu đây chắc chắn là project DÙNG THỬ: ALLOW_REMOTE_DB_RESET=yes npm run db:test" >&2
+      exit 2
+    fi
+    echo "⚠️  Đang xoá sạch database từ xa: $HOST (ALLOW_REMOTE_DB_RESET=yes)" >&2
+    ;;
+esac
+
 if ! command -v psql >/dev/null 2>&1; then
   echo "Không tìm thấy psql. Cài Postgres client, hoặc chạy 'supabase start' rồi thử lại." >&2
   exit 1
