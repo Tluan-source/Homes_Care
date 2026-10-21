@@ -16,10 +16,11 @@ Chi tiết cách chạy trên máy ảo Android Studio: **`docs/RUN.md`**
 
 1. **`docs/ARCHITECTURE.md`** — mục tiêu, giao diện, lập trình, kiểm thử, bảo trì
 2. **`docs/RUN.md`** — cách chạy, và các lỗi hay gặp
-3. **`docs/SECURITY.md`** — đã làm gì, chưa làm gì, ai chịu trách nhiệm
-4. **`docs/CONVENTIONS.md`** — quy ước viết code, đọc hết trong 5 phút
-5. **`packages/core/src/penalty/policy.ts`** — mọi con số nghiệp vụ về trễ hạn
-6. **`packages/core/tests/core.test.ts`** — đọc test là hiểu nghiệp vụ nhanh nhất
+3. **`docs/DEPLOY.md`** — dựng Supabase + SePay, và cách tự kiểm tra từng bước
+4. **`docs/SECURITY.md`** — đã làm gì, chưa làm gì, ai chịu trách nhiệm
+5. **`docs/CONVENTIONS.md`** — quy ước viết code, đọc hết trong 5 phút
+6. **`packages/core/src/penalty/policy.ts`** — mọi con số nghiệp vụ về trễ hạn
+7. **`packages/core/tests/core.test.ts`** — đọc test là hiểu nghiệp vụ nhanh nhất
 
 ## Cấu trúc
 

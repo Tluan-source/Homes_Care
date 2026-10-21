@@ -1,169 +1,209 @@
 /**
- * NHẬN TIỀN VÀO — Supabase Edge Function.
+ * NHẬN TIỀN VÀO — Supabase Edge Function, SePay gọi tới mỗi khi có biến động số dư.
  *
  * ┌─────────────────────────────────────────────────────────────────────────┐
  * │  HÀM NÀY PHẢI CHẠY PHÍA SERVER. KHÔNG BAO GIỜ ĐƯA LOGIC NÀY VÀO APP.     │
- * │                                                                          │
- * │  - `SUPABASE_SERVICE_ROLE_KEY` bỏ qua toàn bộ RLS. Lộ khoá này là mất     │
- * │    sạch dữ liệu. Nó chỉ được tồn tại trong biến môi trường của Edge      │
- * │    Function, KHÔNG BAO GIỜ trong mã React Native.                         │
- * │  - `SEPAY_WEBHOOK_SECRET` dùng để xác thực người gọi. Cũng vậy.           │
- * │  - Mọi thứ nhúng vào bản build React Native đều đọc ra được bằng cách     │
- * │    giải nén file app. Coi mã app là công khai.                            │
+ * │  `SUPABASE_SERVICE_ROLE_KEY` bỏ qua toàn bộ RLS; `SEPAY_WEBHOOK_SECRET`  │
+ * │  xác thực người gọi. Cả hai chỉ sống trong biến môi trường của hàm này.  │
  * └─────────────────────────────────────────────────────────────────────────┘
  *
- * Triển khai:
- *   supabase secrets set SEPAY_WEBHOOK_SECRET=...
- *   supabase functions deploy sepay-webhook --no-verify-jwt
- * (`--no-verify-jwt` vì SePay gọi tới, không có JWT người dùng; ta tự xác thực bằng
- *  chữ ký ở dưới.)
+ * Triển khai: xem docs/DEPLOY.md §4.
+ *
+ * LUỒNG — và vì sao mỗi bước an toàn khi SePay gửi lại (retry tới 7 lần / 5 giờ):
+ *
+ *   1. Xác thực          sai khoá → 401, không đọc body
+ *   2. LƯU nguyên bản    UNIQUE(provider, provider_tx_id); trùng thì lấy lại hàng cũ
+ *   3. Đã XỬ LÝ chưa?    processed_at có rồi → 200, dừng
+ *   4. Đối soát          reconcile() của core — đúng hàm app dùng
+ *   5. process_bank_tx   ghi tiền + phiếu thu + đánh dấu đã xử lý + nhật ký, MỘT transaction
+ *
+ * Bước 5 lỗi → trả 500 → SePay gửi lại → bước 2 thấy hàng cũ, bước 3 thấy CHƯA xử lý
+ * → làm lại từ bước 4. Bản cũ dừng ở bước 2 và giao dịch không bao giờ được ghi nhận.
  */
 
 import { createClient } from 'jsr:@supabase/supabase-js@2';
 import {
-  reconcile, isAutoKind, makeDocNo,
+  reconcile, extractPaymentCode,
   type BankTransaction, type OpenRequest,
 } from '../_shared/core.ts';
+import { json, readJsonLimited, safeEqual } from '../_shared/http.ts';
 
-const SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
-const WEBHOOK_SECRET = Deno.env.get('SEPAY_WEBHOOK_SECRET')!;
+const db = createClient(
+  Deno.env.get('SUPABASE_URL')!,
+  Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
+  { auth: { persistSession: false } },
+);
+const WEBHOOK_SECRET = Deno.env.get('SEPAY_WEBHOOK_SECRET') ?? '';
 
-const db = createClient(SUPABASE_URL, SERVICE_KEY, {
-  auth: { persistSession: false },
-});
-
-/** So sánh chuỗi theo THỜI GIAN HẰNG SỐ.
- *  So bằng `===` thì thời gian trả lời tiết lộ dần từng ký tự của khoá — kẻ tấn công
- *  dò được khoá bằng cách đo độ trễ. Chi phí viết đúng gần như bằng 0, nên không có
- *  lý do gì viết sai. */
-function safeEqual(a: string, b: string): boolean {
-  if (a.length !== b.length) return false;
-  let diff = 0;
-  for (let i = 0; i < a.length; i++) diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
-  return diff === 0;
-}
+/** Payload SePay nhỏ (~1KB). 64KB là quá rộng rãi; hơn nữa là rác hoặc tấn công. */
+const MAX_BODY = 64 * 1024;
 
 Deno.serve(async (req) => {
   if (req.method !== 'POST') return json({ error: 'method' }, 405);
 
-  // --- 1. XÁC THỰC NGƯỜI GỌI trước khi đọc body.
-  // SePay gửi header `Authorization: Apikey <secret>`.
-  const auth = req.headers.get('authorization') ?? '';
-  const key = auth.replace(/^Apikey\s+/i, '').trim();
-  if (!WEBHOOK_SECRET || !safeEqual(key, WEBHOOK_SECRET)) {
-    // Không nói vì sao sai — tránh giúp người dò khoá.
-    return json({ error: 'unauthorized' }, 401);
+  // --- 1. XÁC THỰC trước khi đọc body. SePay gửi `Authorization: Apikey <secret>`.
+  const key = (req.headers.get('authorization') ?? '').replace(/^Apikey\s+/i, '').trim();
+  if (WEBHOOK_SECRET.length < 32 || !safeEqual(key, WEBHOOK_SECRET)) {
+    return json({ error: 'unauthorized' }, 401);   // không nói vì sao sai
   }
 
-  let raw: Record<string, unknown>;
-  try { raw = await req.json(); } catch { return json({ error: 'bad json' }, 400); }
+  const parsed = await readJsonLimited(req, MAX_BODY);
+  if (!parsed.ok) return json({ error: parsed.error }, parsed.status);
+  const raw = parsed.body;
 
-  const tx = normalize(raw);
-  if (!tx) return json({ error: 'bad payload' }, 400);
+  const n = normalize(raw);
+  // Tiền RA: không phải việc của luồng này. Trả 200 để SePay thôi gửi lại —
+  // trả 4xx thì nó retry 7 lần vô ích.
+  if (n === 'ignore') return json({ ok: true, ignored: 'not incoming' });
+  if (!n) return json({ error: 'bad payload' }, 400);
+  const tx = n;
 
-  // --- 2. GHI NGUYÊN BẢN TRƯỚC, đối soát sau.
-  // Ràng buộc UNIQUE(provider, provider_tx_id) là tuyến chống ghi trùng THẬT.
-  // SePay retry tới 7 lần trong 5 giờ; nếu chỉ dựa vào kiểm tra trong code thì hai
-  // lần retry chạy song song vẫn lọt cả hai.
-  const { data: inserted, error: insErr } = await db
+  try {
+    // --- 2 + 3. Lưu nguyên bản; nếu đã có thì xem đã xử lý chưa.
+    const saved = await saveRaw(tx, raw);
+    if (saved.processed) return json({ ok: true, duplicate: true });
+
+    // --- 4. Đối soát.
+    const candidates = await loadCandidates(tx);
+    const result = reconcile(tx, candidates);
+
+    // --- 5. Ghi — mọi thứ trong một transaction ở database.
+    const { data: receipt, error } = await db.rpc('process_bank_tx', {
+      p_tx: saved.id,
+      p_kind: result.kind,
+      p_request: result.request?.id ?? null,
+      p_code: result.code ?? null,
+      p_reason: result.reason ?? null,
+    });
+    if (error) throw new Error(`process_bank_tx ${error.code}`);
+
+    // Không khớp KHÔNG phải lỗi của SePay — đó là việc của hàng đợi ngoại lệ. Luôn 200.
+    return json({ ok: true, kind: result.kind, receipt: receipt ?? null });
+  } catch (e) {
+    // Chỉ log THÔNG ĐIỆP ngắn, không log object lỗi: object lỗi của PostgREST có thể
+    // kèm nội dung hàng dữ liệu (số tài khoản, tên khách).
+    console.error('sepay-webhook', e instanceof Error ? e.message : 'unknown');
+    return json({ error: 'retry' }, 500);   // an toàn để SePay gửi lại
+  }
+});
+
+/**
+ * Chuẩn hoá payload SePay về kiểu core hiểu. Đổi nhà cung cấp thì chỉ sửa hàm này.
+ *
+ * Payload SePay: { id, gateway, transactionDate: "2026-09-16 14:26:03", accountNumber,
+ *   code, content, transferType: "in"|"out", transferAmount, referenceCode, description }
+ */
+function normalize(p: Record<string, unknown>): BankTransaction | 'ignore' | null {
+  if (p.transferType !== undefined && p.transferType !== 'in') return 'ignore';
+
+  const id = String(p.id ?? '');
+  const amount = Number(p.transferAmount ?? 0);
+  if (!id || !Number.isSafeInteger(amount) || amount <= 0) return null;
+
+  // SePay có thể tự nhận diện mã (trường `code`) nếu bạn cấu hình tiền tố "HC" trong
+  // SePay. Ghép lên đầu nội dung để core thử cả hai; mã có ký tự kiểm tra nên ghép
+  // thêm không làm khớp nhầm được.
+  const content = [p.code, p.content ?? p.description]
+    .filter(v => typeof v === 'string' && v.length > 0).join(' ');
+
+  return {
+    providerTxId: id,
+    accountNumber: String(p.accountNumber ?? ''),
+    amount,
+    content,
+    referenceCode: p.referenceCode ? String(p.referenceCode) : undefined,
+    occurredAt: parseSepayTime(p.transactionDate),
+  };
+}
+
+/** SePay gửi giờ Việt Nam KHÔNG kèm múi giờ: "2026-09-16 14:26:03".
+ *  `new Date()` trên server UTC sẽ hiểu là 14:26 UTC — lệch 7 tiếng, và giao dịch
+ *  sau 17:00 sẽ rơi sang NGÀY HÔM SAU trên sổ. Gắn +07:00 cho đúng. */
+function parseSepayTime(v: unknown): Date {
+  if (typeof v === 'string') {
+    const m = v.match(/^(\d{4}-\d{2}-\d{2})[ T](\d{2}:\d{2}(:\d{2})?)$/);
+    if (m) return new Date(`${m[1]}T${m[2]}${m[3] ? '' : ':00'}+07:00`);
+    const d = new Date(v);
+    if (!isNaN(d.getTime())) return d;
+  }
+  return new Date();
+}
+
+async function saveRaw(tx: BankTransaction, raw: Record<string, unknown>) {
+  const { data, error } = await db
     .from('bank_transactions')
     .insert({
       provider: 'sepay',
       provider_tx_id: tx.providerTxId,
       account_number: tx.accountNumber,
       amount: tx.amount,
-      content: tx.content,
-      reference_code: tx.referenceCode,
+      content: String(raw.content ?? raw.description ?? ''),   // NGUYÊN BẢN, không phải bản đã ghép
+      reference_code: tx.referenceCode ?? null,
       occurred_at: tx.occurredAt.toISOString(),
       raw_payload: raw,
     })
     .select('id')
     .single();
 
-  if (insErr) {
-    // 23505 = unique_violation → đúng giao dịch này đã nhận rồi. Trả 200 để SePay
-    // ngừng retry; trả lỗi thì nó sẽ gửi lại mãi.
-    if (insErr.code === '23505') return json({ ok: true, duplicate: true });
-    // Chỉ log MÃ lỗi, không log cả object: object lỗi của PostgREST có thể
-    // kèm theo nội dung hàng dữ liệu (số tài khoản, tên khách) vào log.
-    console.error('insert bank_transactions failed', insErr.code);
-    return json({ error: 'db' }, 500);
-  }
-  const txId = inserted!.id as string;
+  if (!error) return { id: data.id as string, processed: false };
 
-  // --- 3. ĐỐI SOÁT bằng đúng hàm mà app dùng.
-  // App hiện "phải trả 52 triệu", server ghi sổ cũng phải ra 52 triệu. Dùng chung
-  // packages/core là cách duy nhất chắc chắn hai bên không lệch.
-  const { data: rows, error: reqErr } = await db
-    .from('payment_requests')
-    .select('id, code, contract_id, amount, status, bank_accounts(number)')
-    .in('status', ['DRAFT', 'SENT']);
+  // 23505 = đã lưu giao dịch này rồi (SePay gửi lại). Chưa chắc đã XỬ LÝ xong.
+  if (error.code !== '23505') throw new Error(`insert ${error.code}`);
+  const { data: old, error: e2 } = await db
+    .from('bank_transactions')
+    .select('id, processed_at')
+    .eq('provider', 'sepay')
+    .eq('provider_tx_id', tx.providerTxId)
+    .single();
+  if (e2 || !old) throw new Error(`reload ${e2?.code ?? 'missing'}`);
+  return { id: old.id as string, processed: old.processed_at !== null };
+}
 
-  if (reqErr) { console.error('load requests failed', reqErr.code); return json({ error: 'db' }, 500); }
+/**
+ * Chỉ nạp phiếu LIÊN QUAN: phiếu mang đúng mã trong nội dung, cộng các phiếu đang mở
+ * khác của CÙNG hợp đồng (để nhận ra "trả gộp nhiều kỳ").
+ *
+ * Bản cũ nạp MỌI phiếu đang mở của MỌI chủ nhà ở mỗi lần có tiền về — chậm dần theo
+ * thời gian, và trộn dữ liệu các tổ chức vào cùng một phép so.
+ *
+ * Phiếu đúng mã nhưng thuộc tài khoản khác VẪN được nạp: để reconcile() nhận ra
+ * "tiền vào nhầm tài khoản chủ nhà khác" thay vì báo chung chung "không tìm thấy mã".
+ */
+async function loadCandidates(tx: BankTransaction): Promise<OpenRequest[]> {
+  const code = extractPaymentCode(tx.content);
+  if (!code) return [];
 
-  const open: OpenRequest[] = (rows ?? []).map((r: any) => ({
+  const cols = 'id, code, contract_id, amount, created_at, bank_accounts(number), payment_request_lines(payment_periods(due_on))';
+  const { data: hit, error } = await db
+    .from('payment_requests').select(cols)
+    .eq('code', code).in('status', ['DRAFT', 'SENT'])
+    .maybeSingle();
+  if (error) throw new Error(`load request ${error.code}`);
+  if (!hit) return [];
+
+  const { data: siblings, error: e2 } = await db
+    .from('payment_requests').select(cols)
+    .eq('contract_id', hit.contract_id).in('status', ['DRAFT', 'SENT']);
+  if (e2) throw new Error(`load siblings ${e2.code}`);
+
+  return (siblings ?? [hit]).map(toOpenRequest);
+}
+
+// deno-lint-ignore no-explicit-any
+function toOpenRequest(r: any): OpenRequest {
+  // Thứ tự phân bổ khi trả gộp = kỳ tới hạn SỚM NHẤT trong phiếu.
+  const dues: string[] = (r.payment_request_lines ?? [])
+    // deno-lint-ignore no-explicit-any
+    .map((l: any) => l.payment_periods?.due_on)
+    .filter((d: unknown): d is string => typeof d === 'string')
+    .sort();
+  const first = dues[0];
+  return {
     id: r.id,
     code: r.code,
     contractId: r.contract_id,
     accountNumber: r.bank_accounts?.number ?? '',
     amount: Number(r.amount),
-    due: new Date(),          // thứ tự phân bổ nhiều kỳ lấy từ due của phiếu
-  }));
-
-  const result = reconcile(tx, open);
-
-  // --- 4. CHỈ ghi sổ khi khớp chắc. Lệch tiền thì KHÔNG BAO GIỜ tự ghi nhận.
-  if (isAutoKind(result.kind) && result.kind === 'PAID' && result.request) {
-    const { error } = await db.rpc('settle_request', {
-      p_request_id: result.request.id,
-      p_transaction_id: txId,
-      p_amount: tx.amount,
-      p_receipt_no: makeDocNo('PT', new Date(), await nextReceiptSeq()),
-    });
-    if (error) { console.error('settle failed', error.code); return json({ error: 'settle' }, 500); }
-  }
-
-  await db.from('audit_logs').insert({
-    actor_type: 'SEPAY',
-    action: isAutoKind(result.kind)
-      ? `Đối soát khớp — ghi nhận đã thanh toán`
-      : `Không tự ghi nhận được — ${result.kind}`,
-    entity_type: 'bank_transaction',
-    entity_id: tx.providerTxId,
-    amount: tx.amount,
-    meta: { kind: result.kind, code: result.code ?? null, reason: result.reason ?? null },
-  });
-
-  // Luôn trả 200 khi đã nhận và lưu được giao dịch — không khớp KHÔNG phải lỗi của
-  // SePay, đó là việc của hàng đợi ngoại lệ. Trả lỗi chỉ khiến nó gửi lại vô ích.
-  return json({ ok: true, kind: result.kind });
-});
-
-/** Chuẩn hoá payload của nhà cung cấp về kiểu mà core hiểu.
- *  Đổi nhà cung cấp thì chỉ sửa hàm này. */
-function normalize(p: Record<string, any>): BankTransaction | null {
-  const id = String(p.id ?? p.transactionId ?? '');
-  const amount = Number(p.transferAmount ?? p.amount ?? 0);
-  if (!id || !amount) return null;
-  // Chỉ quan tâm tiền VÀO. Tiền ra không phải việc của luồng này.
-  if (p.transferType && p.transferType !== 'in') return null;
-  return {
-    providerTxId: id,
-    accountNumber: String(p.accountNumber ?? ''),
-    amount,
-    content: String(p.content ?? p.description ?? ''),
-    referenceCode: p.referenceCode ? String(p.referenceCode) : undefined,
-    occurredAt: p.transactionDate ? new Date(p.transactionDate) : new Date(),
+    due: first ? new Date(`${first}T00:00:00+07:00`) : new Date(r.created_at),
   };
 }
-
-async function nextReceiptSeq(): Promise<number> {
-  const { data } = await db.rpc('next_doc_seq', { p_kind: 'PT' });
-  return Number(data ?? 1);
-}
-
-const json = (body: unknown, status = 200) =>
-  new Response(JSON.stringify(body), {
-    status, headers: { 'content-type': 'application/json' },
-  });

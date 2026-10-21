@@ -61,3 +61,19 @@ file_size_limit = "100MiB"
 
 [analytics]
 enabled = false
+
+# ---------------------------------------------------------------- Edge Functions
+# SePay và pg_cron không có JWT người dùng → tắt kiểm JWT, hàm TỰ xác thực bằng khoá riêng
+# (SEPAY_WEBHOOK_SECRET / CRON_SECRET). Tắt kiểm JWT mà quên tự xác thực = ai cũng gọi được.
+[functions.sepay-webhook]
+verify_jwt = false
+
+[functions.run-reminders]
+verify_jwt = false
+
+[functions.purge-expired-docs]
+verify_jwt = false
+
+# Chủ nhà gọi từ app → BẮT BUỘC có JWT.
+[functions.invite-member]
+verify_jwt = true

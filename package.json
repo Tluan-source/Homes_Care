@@ -17,6 +17,9 @@
     "db:start": "supabase start",
     "db:reset": "supabase db reset",
     "db:test": "bash supabase/tests/run.sh",
+    "bundle:edge": "node scripts/bundle-edge.mjs",
+    "functions:check": "npm run bundle:edge && deno check supabase/functions/*/index.ts",
+    "functions:deploy": "npm run bundle:edge && supabase functions deploy",
     "android": "npm run android -w @homescare/mobile",
     "start": "npm run start -w @homescare/mobile",
     "prebuild": "npm run prebuild -w @homescare/mobile"
