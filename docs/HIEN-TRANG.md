@@ -18,7 +18,7 @@ Bốn tài liệu trong `docs/` trả lời bốn câu khác nhau. Đừng đọ
 ## 1. Tóm tắt một đoạn
 
 Lõi nghiệp vụ đã xong và có test đầy đủ (39/39). **Database giờ đã chạy thật** trên
-PostgreSQL 16 và có **65 test phân quyền, tất cả đều đạt** — chạy được cả trên máy lẫn
+PostgreSQL 16 và có **87 test phân quyền, tất cả đều đạt** — chạy được cả trên máy lẫn
 trên Supabase thật. App chạy được nhưng mới có **một màn hình** và đang chạy bằng **dữ
 liệu giả**. Hàm nhận tiền vẫn **chưa deploy, và chưa biên dịch được** vì thiếu một file
 sinh ra (xem §3).
@@ -73,9 +73,9 @@ vẫn báo nợ 102 triệu.
 |---|---|---|
 | `packages/core` | ✅ **Chạy + có test** | `npm test` → 39/39 pass, 0.16 giây |
 | `apps/mobile` | ✅ **Chạy được** | `npm start` → quét QR bằng Expo Go, hiện danh sách **47 căn** (40 đã đầy · 6 trống · 1 bảo trì; 9 căn đang nợ, tổng 58.200.000đ) |
-| `supabase/migrations` (5 file) | ✅ **Chạy sạch** | Dựng từ database rỗng trên PostgreSQL 16: 19 bảng, 8 enum, 12 hàm, 8 trigger, 2 view, 36 policy |
+| `supabase/migrations` (6 file) | ✅ **Chạy sạch** | Dựng từ database rỗng trên PostgreSQL 16: 19 bảng, 8 enum, 12 hàm, 8 trigger, 2 view, 36 policy |
 | `supabase/seed.sql` | ✅ **Chạy được** | **Hai tổ chức** khác nhau, 4 căn, 4 hợp đồng phủ cả ba mức thuê |
-| `supabase/tests/` | ✅ **65/65 đạt** | `npm run db:test` — dựng lại từ số 0 rồi chạy toàn bộ |
+| `supabase/tests/` | ✅ **87/87 đạt** | `npm run db:test` — dựng lại từ số 0 rồi chạy toàn bộ |
 | `supabase/functions/sepay-webhook` | ⛔ **Chưa biên dịch được** | Nó `import ... from '../_shared/core.ts'` — **file đó không tồn tại**, mới chỉ có `_shared/README.md` mô tả cách sinh ra nó, và script `npm run bundle:edge` được nhắc tới trong README cũng **chưa được viết** |
 | Kết nối app ↔ Supabase | ⛔ **Chưa có** | Không có file `.env`, không có client Supabase nào trong `apps/mobile` |
 | Nhắc hạn tự động | ⛔ **Chưa viết** | `core` đã có `planReminders` và `marksDueToday`, nhưng chưa có Edge Function nào gọi chúng theo giờ |
@@ -84,7 +84,7 @@ vẫn báo nợ 102 triệu.
 
 ```bash
 npm run db:start     # supabase start
-npm run db:test      # dựng lại từ số 0, chạy 65 test phân quyền
+npm run db:test      # dựng lại từ số 0, chạy 87 test phân quyền
 ```
 
 Bộ test dùng đúng cách Supabase nhận diện người dùng ngoài đời — `set role authenticated`
@@ -169,6 +169,7 @@ sửa gì.** Đó cũng là lý do màn hình nhận dữ liệu qua props chứ
 | `0003_rls.sql` | 245 | 5 hàm trợ giúp + **32 chính sách phân quyền** |
 | `0004_rpc.sql` | 95 | `next_doc_seq`, `settle_request`, `log_event` |
 | `0005_storage.sql` | 143 | 3 bucket riêng tư (ảnh CCCD / bàn giao / bill) + 4 chính sách + lịch xoá |
+| `0006_account_lock.sql` | 150 | Khoá / mở khoá tài khoản quản lý (S2) · ảnh CCCD xoá khi hết hợp đồng (S3) |
 | `functions/sepay-webhook/index.ts` | 169 | Nhận biến động số dư, đối soát, ghi sổ |
 
 **19 bảng, nhóm theo việc:**
@@ -298,12 +299,12 @@ tệ nhất — lúc đang có tiền thật trong tài khoản.
 | Quy tắc nghiệp vụ (`core`) | ██████████ 100% | — |
 | Test lõi | ██████████ 100% | 39/39 đạt |
 | Lược đồ database | ██████████ 100% | Chạy sạch từ database rỗng; có seed hai tổ chức |
-| Phân quyền RLS | ██████████ 100% | 65/65 test đạt, chạy được cả trên Supabase thật |
+| Phân quyền RLS | ██████████ 100% | 87/87 test đạt, chạy được cả trên Supabase thật |
 | Webhook nhận tiền | ██████░░░░ 60% | Thiếu `_shared/core.ts` + script `bundle:edge`; chưa deploy |
 | Giao diện | ██░░░░░░░░ 20% | 1/8 màn hình; chưa có điều hướng |
 | Nối app ↔ database | ░░░░░░░░░░ 0% | Chưa bắt đầu |
 | Nhắc hạn tự động | ░░░░░░░░░░ 0% | Chưa bắt đầu |
-| Gửi QR qua Zalo | ░░░░░░░░░░ 0% | Còn vướng: Zalo **cấm QR trong ảnh mẫu ZNS** |
+| Gửi QR qua Zalo | ░░░░░░░░░░ 0% | Chốt: quản lý **tự chia sẻ** từ app sang Zalo (không dùng ZNS) — chỉ cần bảng chia sẻ của máy |
 
 ---
 
@@ -334,19 +335,22 @@ Mấy câu này **chặn việc**, không phải hỏi cho đủ thủ tục.
 
 | # | Câu hỏi | Chặn cái gì |
 |---|---|---|
-| S1 | Đăng nhập bằng gì — OTP SMS hay email + mật khẩu? | Chặn mọi việc liên quan tài khoản. OTP tiện hơn nhưng tốn phí mỗi lần |
-| S2 | Quản lý nghỉ việc thì quy trình thu hồi ra sao? | Xoá `memberships` là mất quyền, nhưng phiên đang mở vẫn sống tới khi token hết hạn |
-| S3 | Giữ ảnh CCCD bao lâu sau khi khách trả phòng? | Đang mặc định **90 ngày** (10 ngày hoàn cọc + đệm tranh chấp) |
+| ~~S1~~ | ✅ Email + mật khẩu, không tự đăng ký | chốt 24/09 |
+| ~~S2~~ | ✅ Chủ nhà khoá tài khoản — `0006_account_lock.sql`, hiệu lực ngay | chốt 24/09 |
+| ~~S3~~ | ✅ Giữ + mã hoá tới hết hợp đồng, rồi xoá | chốt 24/09 · phần mã hoá chưa dựng |
 
-**Và một câu không phải kỹ thuật, nhưng quan trọng hơn cả sáu câu trên:**
+**Nhắc khách & đối soát — chốt 24/09/2026:**
 
-> Mỗi tháng, người quản lý mất bao nhiêu thời gian **nhắc khách đóng tiền**, so với bao nhiêu
-> thời gian **dò sao kê đối soát**?
+| Việc | Ai / cái gì làm |
+|---|---|
+| Nhắc hạn | **Chỉ trong app**, cho chủ nhà + quản lý. App không nhắn khách |
+| Gửi QR cho khách | **Quản lý tự gửi qua Zalo** — app soạn sẵn ảnh QR + tin nhắn, bấm chia sẻ |
+| Đối soát tiền vào | **SePay tự động** — khớp mã là ghi sổ, lệch tiền vào hàng đợi ngoại lệ |
 
-Toàn bộ thiết kế hiện tại đang đặt cược rằng đối soát mới là nút thắt. Nếu thực tế là nhắc
-mới tốn thời gian, thì bản MVP này **chuyển nút thắt chứ không gỡ nút thắt** — vì quản lý
-vẫn phải tự tay gửi ~200 mã QR mỗi tháng. Câu này cần đo bằng đồng hồ trong một tháng, không
-đoán được bằng code.
+Hệ quả thiết kế: việc tay còn lại nhiều nhất là **gửi ~200 QR mỗi tháng**, nên màn gửi QR phải
+là màn nhanh nhất của app (một nút tạo QR cho mọi kỳ tới hạn hôm nay, một nút chia sẻ sang
+Zalo, danh sách "chưa gửi"). Sau 1–2 tháng chạy thật nên đo lại thời gian gửi QR; nếu quá lớn
+thì mới cân nhắc Zalo OA / ZNS.
 
 ---
 

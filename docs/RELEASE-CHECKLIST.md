@@ -14,7 +14,7 @@ Kiểm trực tiếp trên máy, không đọc theo tài liệu:
 |---|---|
 | `npm test` (lõi nghiệp vụ) | ✅ 39/39 đạt |
 | `npm run typecheck` | ✅ Xanh *(24/09: nguyên nhân là app kiểm kiểu trước khi lõi được dựng — nay typecheck tự dựng lõi)* |
-| Migrations + 65 test RLS | ✅ theo HIEN-TRANG (chưa chạy lại trên máy này vì máy không có `psql`/`supabase`) |
+| Migrations + test RLS | ✅ 87/87 đạt trên Postgres 16 sạch (kiểm lại 24/09, gồm 22 test khoá tài khoản) |
 | Webhook SePay | ❌ Không biên dịch được — thiếu `_shared/core.ts`, chưa có script `bundle:edge` |
 | App mobile | ⚠️ 1/8 màn hình, dữ liệu giả, chưa có đăng nhập, chưa nối Supabase |
 | Nhắc hạn tự động | ❌ Chưa có Edge Function `run-reminders` |
@@ -64,27 +64,35 @@ Kiểm trực tiếp trên máy, không đọc theo tài liệu:
 
 ## 2. Chốt quyết định còn treo
 
-- [ ] ⛔ **S1** — Đăng nhập: OTP SMS hay email + mật khẩu? *(chặn mọi việc tài khoản)*
-- [ ] **S2** — Quy trình thu hồi khi quản lý nghỉ việc *(bảo mật vận hành)*
-- [ ] **S3** — Giữ ảnh CCCD bao lâu, đang để 90 ngày *(pháp lý dữ liệu)*
-- [ ] Đo thời gian **nhắc khách** vs **đối soát** trong 1 tháng *(quyết thứ tự ưu tiên giai đoạn 2)*
-- [ ] Phát hành công khai trên store, hay chỉ nội bộ (Internal testing / TestFlight / Apple Business Manager)? *(quyết mục 7)*
+- [x] ⛔ **S1** — Đăng nhập: **email + mật khẩu**. *(chốt 24/09)* Không cho tự đăng ký — chủ nhà tạo tài khoản cho quản lý. Mật khẩu ≥ 10 ký tự, có chữ và số. Đã cấu hình ở `supabase/config.toml`.
+- [x] **S2** — Quản lý nghỉ việc → chủ nhà **khoá** tài khoản (không xoá, mở lại được). *(chốt 24/09)* App chỉ có 2 vai: chủ nhà và quản lý. Đã dựng ở `0006_account_lock.sql`: `lock_member()` / `unlock_member()`, hiệu lực ngay ở database kể cả khi phiên đăng nhập còn sống, có ghi nhật ký. 22 test mới trong `50_lock.sql` → tổng **87/87 đạt**.
+- [x] **S3** — Ảnh CCCD **giữ và mã hoá tới khi hợp đồng kết thúc**, rồi xoá. *(chốt 24/09)* Mốc xoá đổi từ 90 ngày → 0 ngày (`id_doc_retention_days()` trong `0006`). ⚠️ Đánh đổi: tranh chấp cọc sau ngày kết thúc sẽ không còn ảnh CCCD để đối chiếu — hợp đồng giấy và biên bản bàn giao vẫn còn. Phần mã hoá: xem mục 5.
+- [x] **Nhắc & đối soát** *(chốt 24/09)*:
+  - **Nhắc chỉ trong app**, chỉ cho chủ nhà và quản lý. App **không** nhắn cho khách.
+  - **Đối soát tự động bằng SePay** — tiền về là tự ghi sổ, lệch tiền thì vào hàng đợi ngoại lệ.
+  - **QR gửi tay qua Zalo** — quản lý bấm chia sẻ từ app sang Zalo. Vì bước này làm tay ~200 lần/tháng, màn gửi QR phải nhanh nhất có thể (mục 4).
+  - *Còn nên đo sau 1–2 tháng chạy thật:* thời gian gửi QR mỗi tháng. Nếu quá lớn thì cân nhắc Zalo OA / ZNS ở giai đoạn 2.
+- [x] Phát hành: **nội bộ trước** (Google Play Internal testing + TestFlight), công khai sau. *(chốt 24/09)*
 
 ---
 
 ## 3. Backend (Supabase) — production
 
 - [ ] ⛔ Tạo project Supabase production (region Singapore), **tách hẳn** project staging.
-- [ ] Chạy 5 migration lên staging → chạy `db:test` trên staging → rồi mới production.
+- [ ] Chạy 6 migration lên staging → chạy `db:test` trên staging → rồi mới production.
 - [ ] Không chạy `seed.sql` lên production.
-- [ ] Tắt `enable_signup`; bật xác nhận email / cấu hình OTP theo S1.
+- [ ] Production: tắt đăng ký tự do, **bật** xác nhận email, độ dài mật khẩu 10 + chữ/số, bật MFA TOTP — cùng cấu hình như `config.toml` (bản cục bộ đã xong).
+- [ ] ⛔ Edge Function `invite-member`: chủ nhà nhập email quản lý → tạo tài khoản + `profiles` + `memberships` (cần `service_role`, nên phải ở server). Tắt đăng ký tự do thì đây là đường DUY NHẤT để có tài khoản quản lý.
+- [ ] *(tuỳ chọn)* Khi khoá, gọi thêm Auth Admin API `ban_duration` để chặn cả việc đăng nhập lại — database đã chặn dữ liệu, bước này chỉ để app không cho vào luôn.
 - [ ] Cấu hình SMTP riêng (email mặc định của Supabase bị giới hạn số lượng).
 - [ ] ⛔ Viết `npm run bundle:edge` sinh `_shared/core.ts` từ `packages/core`; đưa vào CI để không ai sửa tay.
 - [ ] ⛔ Sửa các lỗi webhook ở mục 0, deploy `sepay-webhook --no-verify-jwt`, `supabase secrets set SEPAY_WEBHOOK_SECRET=...`.
 - [ ] Thử webhook bằng giao dịch thật số nhỏ (vd 2.000đ): khớp → phiếu thu sinh ra; gửi lại → không ghi hai lần; lệch 1.000đ → vào hàng đợi ngoại lệ.
 - [ ] Rate limit / chặn body quá lớn cho webhook.
-- [ ] ⛔ Job xoá file theo `file_retention` (pg_cron hằng ngày).
-- [ ] Edge Function `run-reminders` + `pg_cron` mỗi giờ (dùng `planReminders`/`marksDueToday` của core).
+- [ ] ⛔ Job xoá file theo `file_retention` (pg_cron hằng ngày). Theo S3 mốc là **ngay ngày hợp đồng kết thúc**, nên job phải chạy mỗi ngày, không phải mỗi tuần.
+- [ ] Job chuyển hợp đồng quá `ends_on` sang `ENDED` — không có job này thì trigger hẹn xoá CCCD không bao giờ chạy.
+- [ ] Edge Function `run-reminders` + `pg_cron` mỗi sáng: gửi **push trong app cho quản lý phụ trách tòa + chủ nhà** theo mốc D-3 / D0 / D+1 / D+3 (`marksDueToday` của core). Không gửi gì cho khách thuê. Kỳ đã thanh toán → dừng hẳn.
+- [ ] ⛔ **SePay:** tạo tài khoản, liên kết tài khoản ngân hàng nhận tiền của **từng chủ nhà**, khai báo webhook trỏ về `sepay-webhook` kèm API key; chọn gói SePay theo số giao dịch/tháng (~200+).
 - [ ] Kiểm lại: mọi view có `security_invoker = true`; mọi hàm `security definer` đã `revoke ... from public, anon, authenticated`.
 - [ ] Bật Point-in-Time Recovery (gói trả phí) **và** ⛔ diễn tập khôi phục một lần vào project trống.
 - [ ] Bật cảnh báo: lỗi Edge Function, dung lượng DB/Storage.
@@ -93,13 +101,21 @@ Kiểm trực tiếp trên máy, không đọc theo tài liệu:
 
 ## 4. App mobile — tính năng tối thiểu để release (P0 + P1)
 
-- [ ] ⛔ Màn đăng nhập theo S1, lưu phiên an toàn (`expo-secure-store`), đăng xuất.
+- [ ] ⛔ Màn đăng nhập email + mật khẩu, quên mật khẩu (email đặt lại), lưu phiên an toàn (`expo-secure-store`), đăng xuất.
+- [ ] Màn **Tài khoản quản lý** (chỉ chủ nhà): danh sách, mời mới, khoá / mở khoá (gọi `lock_member` / `unlock_member`).
+- [ ] Tài khoản bị khoá đăng nhập vào → hiện "Tài khoản đã bị khoá, liên hệ chủ nhà" (đọc `profiles.locked_at`), không hiện màn hình trống.
 - [ ] ⛔ Lớp dữ liệu Supabase thay `demo.ts` (chỉ `SUPABASE_URL` + `ANON_KEY` qua `EXPO_PUBLIC_*`).
 - [ ] Điều hướng: thanh dưới 3 mục — Căn hộ · Cần xử lý · Sổ quỹ.
 - [ ] Chi tiết căn 5 tab.
 - [ ] Thêm căn (3 ô riêng tòa/tầng/mã căn, xem trước mã).
 - [ ] Luồng Cho thuê 5 bước, hiện TỔNG PHẢI THU trước khi lưu.
-- [ ] Tạo yêu cầu thanh toán → hiện QR VietQR → chia sẻ/tải ảnh QR.
+- [ ] ⛔ **Gửi QR qua Zalo** — việc tay nhiều nhất của quản lý, phải tối ưu:
+  - [ ] Nút **Gửi qua Zalo**: mở bảng chia sẻ của máy với **ảnh QR + tin nhắn soạn sẵn** (tên căn, kỳ, số tiền, số TK, nội dung chuyển khoản). Quản lý chỉ chọn khách trong Zalo rồi gửi.
+  - [ ] Tin soạn sẵn có dòng **"Vui lòng giữ nguyên nội dung chuyển khoản"** — khách sửa nội dung là mất mã, SePay không tự khớp được.
+  - [ ] Nút **Sao chép nội dung** và **Lưu ảnh QR** cho khách không dùng Zalo.
+  - [ ] Sau khi chia sẻ, hỏi **"Đã gửi cho khách chưa?"** → đánh dấu `SENT` + `sent_at`. App không biết chắc Zalo đã gửi, nên phải hỏi, không tự đánh dấu.
+  - [ ] Danh sách **"Chưa gửi QR"** ở màn Cần xử lý, xếp theo hạn — bấm lần lượt từ trên xuống.
+  - [ ] Tạo sẵn phiếu + QR cho **mọi kỳ tới hạn hôm nay** chỉ bằng một nút, để quản lý chỉ còn việc bấm gửi.
 - [ ] Hàng đợi ngoại lệ (PARTIAL / OVERPAID / UNMATCHED / MULTI_PERIOD) + ghi nhận tiền mặt.
 - [ ] Xin khất / duyệt khất (quản lý ≤ 7 ngày, trên nữa chủ nhà).
 - [ ] Sổ quỹ khoá theo chủ nhà đăng nhập.
@@ -109,7 +125,7 @@ Kiểm trực tiếp trên máy, không đọc theo tài liệu:
 - [ ] Mọi thứ bấm được có `accessibilityLabel`.
 - [ ] Chế độ sáng/tối, chữ lớn (Dynamic Type), màn hình nhỏ.
 - [ ] Theo dõi lỗi crash (Sentry qua `sentry-expo`) — **lọc dữ liệu cá nhân** khỏi báo lỗi.
-- [ ] Push notification (Expo Notifications) nếu nhắc hạn đi kèm bản đầu.
+- [ ] Push notification (Expo Notifications) cho chủ nhà + quản lý: bản tin sáng *"Hôm nay: N căn cần gửi QR, M căn quá hạn"*, và báo khi SePay ghi nhận tiền về / có giao dịch lệch.
 - [ ] ⛔ **Xoá tài khoản ngay trong app** — Apple và Google đều bắt buộc nếu app cho tạo tài khoản.
 
 ---
@@ -117,8 +133,10 @@ Kiểm trực tiếp trên máy, không đọc theo tài liệu:
 ## 5. Bảo mật & dữ liệu cá nhân
 
 - [ ] ⛔ Quét bản build (`.apk`/`.ipa` giải nén) — không có `service_role`, không có khoá SePay.
-- [ ] Bắt buộc 2 lớp (MFA) cho tài khoản OWNER.
-- [ ] Quy trình thu hồi phiên khi quản lý nghỉ (S2) — có nút, có người chịu trách nhiệm.
+- [ ] Bắt buộc 2 lớp (MFA TOTP) cho tài khoản OWNER: app ép đăng ký mã khi chủ nhà đăng nhập lần đầu; RLS các bảng tiền kiểm `aal2` với vai OWNER.
+- [x] Quy trình khi quản lý nghỉ (S2): chủ nhà bấm khoá — database đã xong, còn màn hình (mục 4).
+- [ ] ⛔ **Mã hoá ảnh CCCD (S3).** Supabase đã mã hoá ổ đĩa (at rest), nhưng ai cầm signed URL hoặc có quyền đọc bucket vẫn thấy ảnh gốc. Mã hoá thêm một lớp: tải lên qua Edge Function, mã hoá AES-256-GCM bằng khoá trong `supabase secrets`, xem lại cũng qua Edge Function. **Khoá không bao giờ nằm trong app.**
+- [ ] Mã hoá **số CCCD** trong database (cột `id_number` và các cột tương tự) — cùng khoá phía server.
 - [ ] Rà log: không in số tài khoản, CCCD, tên khách.
 - [ ] ⛔ Điều khoản dữ liệu cá nhân trong hợp đồng thuê: thu gì, để làm gì, lưu bao lâu, ai xem, khách có quyền gì.
 - [ ] ⛔ Nhờ người có chuyên môn pháp lý rà theo quy định hiện hành về bảo vệ dữ liệu cá nhân (NĐ 13/2023 và Luật Bảo vệ dữ liệu cá nhân 2025 — kiểm lại điều khoản đang có hiệu lực).

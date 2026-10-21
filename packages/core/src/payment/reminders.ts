@@ -2,6 +2,11 @@
  * Lịch nhắc — chốt D-3 → D+3 với chủ dự án.
  *
  * Mốc nhắc nằm ở đây, KHÔNG rải trong màn hình hay trong Edge Function.
+ *
+ * AI NHẬN NHẮC (chốt 24/09/2026): **chỉ chủ nhà và quản lý, chỉ trong app.**
+ * App không nhắn cho khách thuê. Khách nhận QR qua Zalo do quản lý TỰ GỬI, nên nhãn
+ * dưới đây là việc QUẢN LÝ phải làm, không phải lời nhắn gửi khách. Thêm kênh gửi
+ * thẳng cho khách (Zalo ZNS, SMS) về sau thì thêm trường người nhận, đừng sửa nhãn.
  */
 
 import type { Day } from '../types.js';
@@ -15,10 +20,10 @@ export interface ReminderMark {
 }
 
 export const REMINDER_MARKS: readonly ReminderMark[] = [
-  { offset: -3, key: 'D-3', label: 'Nhắc sắp tới hạn' },
-  { offset:  0, key: 'D0',  label: 'Gửi yêu cầu thanh toán' },
-  { offset:  1, key: 'D+1', label: 'Nhắc lần 1' },
-  { offset:  3, key: 'D+3', label: 'Nhắc lần 2' },
+  { offset: -3, key: 'D-3', label: 'Sắp tới hạn — chuẩn bị QR' },
+  { offset:  0, key: 'D0',  label: 'Tới hạn — gửi QR cho khách qua Zalo' },
+  { offset:  1, key: 'D+1', label: 'Chưa nhận tiền — nhắc khách lần 1' },
+  { offset:  3, key: 'D+3', label: 'Chưa nhận tiền — nhắc khách lần 2' },
 ];
 
 export interface PlannedReminder extends ReminderMark {
